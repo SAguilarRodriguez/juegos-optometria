@@ -31,3 +31,11 @@ Para jugar, abre `juegos/pupi-man/index.html` en el navegador.
 Variación de Pupi-Man firmada por INOP Ingeniería Óptica. Pupi recoge goticas de lubricante y los enemigos son bacterias que afectan el ojo: Estafilococo, Pseudomona, Estreptococo y Clamidia. Los antibióticos de las esquinas las debilitan (se ponen pálidas) y Pupi puede atraparlas. Al limpiar el nivel: ¡Ojo sano!
 
 Para jugar, abre `juegos/pupi-man-bacterias/index.html` en el navegador.
+
+## App para Android
+
+Pupi-Man vs Bacterias también se instala como app en el celular. Cada vez que cambia el juego, GitHub compila un APK nuevo (ver `.github/workflows/android.yml` y la carpeta `android/`).
+
+Descarga directa desde el celular: https://github.com/SAguilarRodriguez/juegos-optometria/releases/latest/download/PupiMan-INOP.apk
+
+La app funciona sin internet. La fuente Press Start 2P va incluida bajo la licencia SIL Open Font License.
