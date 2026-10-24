@@ -1,0 +1,696 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}</style></head><body>
+<title>Lubri Climber Efron</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<style>
+  /* Arcade cabinet: mountain playfield + Oxford panel on one screen, touch pad below on phones. Single dark look on purpose. */
+  :root{
+    color-scheme: dark;
+    --ground:#050b18; --panel:#12213f; --ink:#e8f1ff; --muted:#8ea6cc; --accent:#6fe3d4; --gold:#ffd23f;
+  }
+  html,body{height:100%}
+  body{background:var(--ground);color:var(--ink);font-family:"Press Start 2P",ui-monospace,monospace;overflow:hidden}
+  #app{height:100%;display:flex;flex-direction:column;box-sizing:border-box;
+    padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  #stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding-block:10px}
+  #game{display:block;image-rendering:pixelated;border-radius:4px;box-shadow:0 0 0 3px var(--panel),0 12px 40px rgba(0,0,0,.5);outline:none;touch-action:none}
+  #game:focus-visible{box-shadow:0 0 0 3px var(--accent),0 12px 40px rgba(0,0,0,.5)}
+  #pad{display:none;flex-direction:column;gap:10px;max-width:440px;width:100%;margin-inline:auto;padding-block:6px;user-select:none;-webkit-user-select:none}
+  #pad .row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  #pad .grp{display:flex;gap:12px}
+  #pad button{font:inherit;color:var(--ink);background:var(--panel);border:3px solid #2c4474;touch-action:none}
+  #pad .big{width:68px;height:68px;border-radius:50%;font-size:16px}
+  #pad .act{width:76px;height:76px;border-radius:50%;font-size:9px;line-height:1.5}
+  #pad .act.a{background:#b8321f;border-color:#e0664f}
+  #pad .act.b{background:#1c7d72;border-color:var(--accent)}
+  #pad .small{flex:1;height:40px;border-radius:20px;font-size:9px}
+  #pad .small.go{background:#1c7d72;border-color:var(--accent)}
+  #pad button:active{transform:scale(.94);filter:brightness(1.3)}
+  #legend{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:center;font-size:9px;line-height:1.6;color:var(--muted);padding-block:4px 12px;text-align:center}
+  #legend b{color:var(--ink);font-weight:normal}
+  #legend .k{color:var(--gold)}
+  @media (pointer:coarse){ #pad{display:flex} #legend .kb{display:none} }
+</style>
+
+<div id="app">
+  <div id="stage"><canvas id="game" tabindex="0" aria-label="Juego Lubri Climber: ojo seco y escala de Efron, de INOP Ingeniería Óptica"></canvas></div>
+  <div id="pad">
+    <div class="row">
+      <div class="grp">
+        <button class="big" data-k="left" aria-label="Izquierda">◀</button>
+        <button class="big" data-k="right" aria-label="Derecha">▶</button>
+      </div>
+      <div class="grp">
+        <button class="act b" data-k="hit">RETINO<br>SCOPIO</button>
+        <button class="act a" data-k="jump">SALTAR</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="small go" data-a="start">JUGAR</button>
+      <button class="small" data-a="pause">PAUSA</button>
+      <button class="small" data-a="mute" id="btn-mute">SONIDO: SÍ</button>
+    </div>
+  </div>
+  <div id="legend">
+    <span class="kb"><span class="k">← →</span> mover · <span class="k">ESPACIO</span> saltar · <span class="k">X</span> retinoscopio</span>
+    <span class="kb"><span class="k">ENTER</span> empezar · <span class="k">P</span> pausa · <span class="k">M</span> sonido</span>
+    <span>Sube del <b>grado 4</b> al <b>grado 0</b> de la escala de Efron con lubricante</span>
+    <span>Un juego de <b>INOP Ingeniería Óptica</b></span>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const cv = $('game'), ctx = cv.getContext('2d');
+const VW = 256, VH = 240, HUD = 20, PW = 256, VHP = VH - HUD;
+const buf = document.createElement('canvas'); buf.width = VW; buf.height = VH;
+const b = buf.getContext('2d');
+let SC = 1, DPR = 1;
+function resize(){
+  const box = $('stage').getBoundingClientRect();
+  SC = Math.max(0.5, Math.min(box.width / VW, (box.height - 20) / VH));
+  DPR = window.devicePixelRatio || 1;
+  cv.style.width = Math.floor(VW*SC) + 'px'; cv.style.height = Math.floor(VH*SC) + 'px';
+  cv.width = Math.round(VW*SC*DPR); cv.height = Math.round(VH*SC*DPR);
+}
+new ResizeObserver(resize).observe($('stage'));
+resize();
+const R = (g, col, x, y, w, h) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+
+/* ---------- Efron grading scale (0-4): corneal staining with fluorescein ---------- */
+const GRADES = [
+  {n:'0', name:'NORMAL',   col:'#9fe8ff', dots:0,
+   fact:'¡CÓRNEA SANA! GRADO 0 DE EFRON. EL LUBRICANTE REPUSO LA LÁGRIMA. CONTROLA TU OJO SECO EN INOP.'},
+  {n:'1', name:'MUY LEVE', col:'#6fe3d4', dots:6,
+   fact:'EL LUBRICANTE REPONE LA LÁGRIMA Y DEJA SANAR LA CÓRNEA. PARPADEA COMPLETO.'},
+  {n:'2', name:'LEVE',     col:'#b6ff3b', dots:22,
+   fact:'SÍNTOMAS: ARDOR, ARENILLA Y VISIÓN QUE VA Y VIENE, MÁS AÚN CON LENTES DE CONTACTO.'},
+  {n:'3', name:'MODERADO', col:'#ffd23f', dots:70,
+   fact:'EN GRADO 3 O 4 DE EFRON HAY QUE TRATAR: AQUÍ ENTRA EL LUBRICANTE.'},
+  {n:'4', name:'SEVERO',   col:'#ff4d4d', dots:160,
+   fact:'LA ESCALA DE EFRON GRADÚA DE 0 A 4 LA TINCIÓN DE LA CÓRNEA CON FLUORESCEÍNA. ¡SUBE HASTA EL 0!'},
+];
+// NES mountain palette: green at the bottom, brown in the middle, ice on top
+const BRICK = [['#6cb8ff','#2a5fc0','#c9e8ff'],['#e8c080','#a07840','#fff0c8'],['#e09848','#9a5a1c','#ffd09a'],['#d87a2a','#8a3f0c','#ffb070'],['#5cbf2a','#2f7a12','#a8f070']];
+function lcg(seed){ let s = seed >>> 0; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
+const CORNEA_DOTS = (() => {   // staining starts in the lower cornea and spreads
+  const r = lcg(11), out = [];
+  while (out.length < 160){
+    const a = r()*Math.PI*2, d = Math.sqrt(r())*20;
+    const x = Math.cos(a)*d, y = Math.sin(a)*d;
+    if (y < -8 && r() < 0.6) continue;
+    out.push([Math.round(x), Math.round(y)]);
+  }
+  return out.sort((p, q) => q[1] - p[1]);
+})();
+function drawCornea(g, cx, cy, r, grade, shown){
+  const k = r / 22;
+  g.fillStyle = '#060b2a'; g.beginPath(); g.arc(cx, cy, r + 3*k, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#1c3fa8'; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#2a55c4'; g.beginPath(); g.arc(cx, cy, r*0.5, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#081030'; g.beginPath(); g.arc(cx, cy, r*0.23, 0, Math.PI*2); g.fill();
+  const n = Math.round(shown), sz = Math.max(1, Math.round(k));
+  g.fillStyle = '#b6ff3b';
+  for (let i=0; i<n; i++){ const [dx, dy] = CORNEA_DOTS[i]; g.fillRect(Math.round(cx + dx*k), Math.round(cy + dy*k), sz, sz); }
+  if (grade === 4){   // coalescent patches
+    g.fillStyle = 'rgba(182,255,59,.55)';
+    for (const [dx, dy, w] of [[-8, 9, 7], [2, 12, 8], [-3, 4, 5]]) g.fillRect(Math.round(cx + dx*k), Math.round(cy + dy*k), Math.round(w*k), Math.round(3*k));
+  }
+  if (grade === 0){ g.fillStyle = '#ffffff'; g.fillRect(Math.round(cx - 8*k), Math.round(cy - 9*k), Math.round(3*k), Math.round(3*k)); }
+}
+
+/* ---------- world: 8 floors, two per grade, summit = grade 0 ---------- */
+const NF = 8, FS = 48, GROUND = 72 + NF*FS, WORLD_H = GROUND + 24, LEFT = 32, RIGHT = 224, COLS = 32;
+const floorY = f => GROUND - f*FS;
+const gradeOf = f => f >= NF ? 0 : 4 - Math.floor(f/2);
+let FL = [];
+function buildWorld(){
+  FL = [null];
+  for (let f=1; f<=NF; f++){
+    const row = [];
+    for (let c=0; c<COLS; c++) row.push(c < 4 || c > 27 ? 'S' : 'B');
+    const rnd = lcg(f*977 + S.level*31);
+    for (let k=0; k<4; k++) row[4 + Math.floor(rnd()*24)] = '.';
+    if (f < NF) for (let k=0; k<2; k++){ const c = 5 + Math.floor(rnd()*21); row[c] = 'S'; row[c+1] = 'S'; }
+    FL.push(row);
+  }
+}
+function cellAt(f, c){
+  if (f === 0) return 'S';
+  if (c < 0 || c >= COLS) return 'S';
+  return FL[f][c];
+}
+function rowsAt(y0, y1){   // floors whose row overlaps [y0, y1)
+  const out = [];
+  for (let f=0; f<=NF; f++){ const fy = floorY(f), fb = f === 0 ? WORLD_H + 99 : fy + 8; if (y0 < fb && y1 > fy) out.push(f); }
+  return out;
+}
+function hitCells(e){
+  const out = [], c0 = Math.floor(e.x/8), c1 = Math.floor((e.x + e.w - 0.001)/8);
+  for (const f of rowsAt(e.y, e.y + e.h)) for (let c=c0; c<=c1; c++) if (cellAt(f, c) !== '.') out.push({f, c});
+  return out;
+}
+function solidAt(x, y){ const c = Math.floor(x/8); return rowsAt(y, y + 0.01).some(f => cellAt(f, c) !== '.'); }
+function moveX(e){
+  e.x += e.vx;
+  let hit = false;
+  if (e.x < LEFT){ e.x = LEFT; hit = true; }
+  if (e.x + e.w > RIGHT){ e.x = RIGHT - e.w; hit = true; }
+  const hits = hitCells(e);
+  if (hits.length && e.vx){
+    if (e.vx > 0) e.x = Math.min(...hits.map(h => h.c))*8 - e.w; else e.x = (Math.max(...hits.map(h => h.c)) + 1)*8;
+    hit = true;
+  }
+  return hit;
+}
+function moveY(e){
+  e.y += e.vy; e.onGround = false;
+  const hits = hitCells(e); if (!hits.length) return null;
+  if (e.vy > 0){ e.y = Math.min(...hits.map(h => floorY(h.f))) - e.h; e.vy = 0; e.onGround = true; return null; }
+  if (e.vy < 0){
+    const f = Math.min(...hits.map(h => h.f)), fy = floorY(f);
+    e.y = fy + 8; e.vy = 0;
+    return hits.filter(h => h.f === f);
+  }
+  return null;
+}
+const overlap = (a, c) => a.x < c.x + c.w && a.x + a.w > c.x && a.y < c.y + c.h && a.y + a.h > c.y;
+
+/* ---------- sound ---------- */
+let AC = null, muted = false;
+function ac(){ if (!AC){ try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} } if (AC && AC.state === 'suspended') AC.resume(); return AC; }
+function tone(f, d, o={}){
+  if (!AC || muted) return;
+  const {type='square', vol=0.06, to=null, at=0} = o;
+  const t = AC.currentTime + at, osc = AC.createOscillator(), g = AC.createGain();
+  osc.type = type; osc.frequency.setValueAtTime(f, t);
+  if (to) osc.frequency.exponentialRampToValueAtTime(to, t+d);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t+d);
+  osc.connect(g).connect(AC.destination); osc.start(t); osc.stop(t+d+0.02);
+}
+function noise(d, vol){
+  if (!AC || muted) return;
+  const n = AC.createBuffer(1, AC.sampleRate*d, AC.sampleRate), data = n.getChannelData(0);
+  for (let i=0; i<data.length; i++) data[i] = (Math.random()*2 - 1) * (1 - i/data.length);
+  const s = AC.createBufferSource(), g = AC.createGain(); s.buffer = n; g.gain.value = vol;
+  s.connect(g).connect(AC.destination); s.start();
+}
+const seq = (notes, step, o) => notes.forEach((f, i) => tone(f, step*1.1, {...o, at: i*step}));
+const sfx = {
+  jump: () => tone(260, 0.2, {to:620}),
+  brk: () => noise(0.18, 0.2),
+  bump: () => tone(110, 0.1, {type:'triangle', vol:0.25}),
+  swing: () => tone(900, 0.12, {to:300, type:'triangle', vol:0.08}),
+  hit: () => tone(700, 0.12, {to:200}),
+  coin: () => { tone(988, 0.07); tone(1319, 0.3, {at:0.07}); },
+  grade: () => seq([523,659,784,1047], 0.07),
+  die: () => seq([494,440,392,330,262,196], 0.11, {vol:0.05}),
+  summit: () => seq([392,523,659,784,1047,1319,1568,2093], 0.09),
+  pause: () => seq([988,784,988,784], 0.07),
+  tick: () => tone(1600, 0.03, {vol:0.03}),
+};
+
+/* ---------- input ---------- */
+const keys = {left:0, right:0, jump:0, hit:0};
+let pressed = {};
+const MAP = {ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',Space:'jump',KeyZ:'jump',ArrowUp:'jump',KeyW:'jump',
+  KeyX:'hit',ShiftLeft:'hit',ShiftRight:'hit',KeyJ:'hit',Enter:'start',KeyP:'pause',KeyM:'mute'};
+function toggleMute(){ muted = !muted; $('btn-mute').textContent = muted ? 'SONIDO: NO' : 'SONIDO: SÍ'; }
+addEventListener('keydown', e => {
+  const k = MAP[e.code]; if (!k) return;
+  e.preventDefault(); ac();
+  if (!e.repeat){ pressed[k] = true; if (k === 'mute') toggleMute(); }
+  if (k in keys) keys[k] = 1;
+});
+addEventListener('keyup', e => { const k = MAP[e.code]; if (k in keys) keys[k] = 0; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = 0; });
+document.querySelectorAll('#pad button').forEach(btn => {
+  const k = btn.dataset.k, a = btn.dataset.a;
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault(); ac();
+    if (k){ keys[k] = 1; pressed[k] = true; if (k === 'jump') pressed.start = true; try { btn.setPointerCapture(e.pointerId); } catch(_) {} }
+    else if (a === 'start') pressed.start = true;
+    else if (a === 'pause'){ if (S.state === 'play') pressed.pause = true; else pressed.start = true; }
+    else if (a === 'mute') toggleMute();
+  });
+  if (k){ const up = () => { keys[k] = 0; }; btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up); btn.addEventListener('lostpointercapture', up); }
+});
+cv.addEventListener('pointerdown', () => { ac(); cv.focus(); pressed.start = true; });
+$('stage').addEventListener('click', () => cv.focus());
+document.addEventListener('visibilitychange', () => { if (document.hidden && S.state === 'play' && !S.paused) pressed.pause = true; });
+cv.focus();
+
+/* ---------- state ---------- */
+const S = {state:'title', score:0, hi:0, lives:3, level:1, frame:0, timer:0, paused:false, drops:0, grade:4, dotsShown:160, banner:4, bonus:0};
+try { S.hi = +localStorage.getItem('lubri-efron-hi') || 0; } catch(e) {}
+let player, enemies, drops, frags, pops, camY, camTarget, landed, flyTimer;
+
+function spawnFloor(f){
+  const g = gradeOf(f), rnd = lcg(f*131 + S.level*7 + S.frame);
+  const n = f === 0 ? 0 : g >= 2 ? 1 : f % 2;
+  const speed = (0.35 + g*0.07) * (1 + (S.level - 1)*0.15);
+  for (let i=0; i<n; i++){
+    const x = LEFT + 14 + rnd()*150;
+    enemies.push({type:'mancha', x, y:floorY(f) - 10, w:12, h:10, vx: rnd() < 0.5 ? -speed : speed, vy:0, onGround:false});
+  }
+  if (f < NF) drops.push({x: LEFT + 12 + rnd()*168, y: floorY(f) - 16, w:6, h:8, taken:false});
+}
+function resetWorld(){
+  buildWorld();
+  enemies = []; drops = []; frags = []; pops = [];
+  for (let f=0; f<NF; f++) spawnFloor(f);
+  player = {x:60, y:GROUND - 16, w:10, h:16, vx:0, vy:0, onGround:true, face:1, swing:0, inv:0};
+  camY = camTarget = WORLD_H - VHP; landed = 0; flyTimer = 200;
+  S.grade = 4; S.dotsShown = GRADES[4].dots;
+}
+function startGame(){
+  S.score = 0; S.lives = 3; S.level = 1; S.drops = 0;
+  resetWorld();
+  showBanner(4);
+}
+function showBanner(g){ S.banner = g; S.state = 'banner'; S.timer = 0; }
+function saveHi(){ if (S.score > S.hi){ S.hi = S.score; try { localStorage.setItem('lubri-efron-hi', S.hi); } catch(e) {} } }
+function popup(text, x, y, col='#ffffff'){ pops.push({text, x, y, t:50, col}); }
+resetWorld();
+
+/* ---------- updates ---------- */
+function breakCells(cells){
+  let broke = false;
+  for (const {f, c} of cells){
+    if (cellAt(f, c) !== 'B') continue;
+    FL[f][c] = '.'; broke = true; S.score += 10;
+    const col = BRICK[gradeOf(f)][0];
+    for (let k=0; k<3; k++) frags.push({x:c*8 + 2 + k*2, y:floorY(f) + 2, vx:(k - 1)*0.8, vy:-2 - Math.random()*1.5, col});
+  }
+  broke ? sfx.brk() : sfx.bump();
+}
+function updatePlayer(){
+  const p = player;
+  let mv = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+  if (p.swing > 0 && p.onGround) mv = 0;
+  p.vx = mv * (p.onGround ? 1.2 : 1.0);
+  if (mv) p.face = mv;
+  if (pressed.jump && p.onGround && p.swing === 0){ p.vy = -5.4; p.from = Math.round((GROUND - (p.y + p.h)) / FS); p.passed = 0; sfx.jump(); }
+  if (pressed.hit && p.swing === 0 && p.onGround){ p.swing = 18; sfx.swing(); }
+  if (p.swing > 0) p.swing--;
+  p.vy = Math.min(p.vy + 0.25, 4.5);
+  moveX(p);
+  const prevBottom = p.y + p.h;
+  const head = moveY(p);
+  if (head) breakCells(head);
+  // climbing assist: once Lubri rises through a hole, he lands on that floor instead of falling back through it
+  if (!p.onGround && p.from !== undefined && p.from < NF && p.y + p.h < floorY(p.from + 1)) p.passed = p.from + 1;
+  if (p.passed && p.vy > 0 && prevBottom <= floorY(p.passed) && p.y + p.h >= floorY(p.passed)){
+    const f = p.passed, supported = x => { const c0 = Math.floor(x/8), c1 = Math.floor((x + p.w - 0.001)/8);
+      return cellAt(f, c0) !== '.' && cellAt(f, c1) !== '.' && x >= LEFT && x + p.w <= RIGHT; };
+    for (let k=0; k<=36; k++){
+      const dx = (k & 1 ? -1 : 1) * Math.ceil(k/2) * (p.face || 1);
+      if (supported(p.x + dx)){ p.x += dx; p.y = floorY(f) - p.h; p.vy = 0; p.onGround = true; break; }
+    }
+    p.passed = 0;
+  }
+  if (p.onGround) p.passed = 0;
+  if (p.inv > 0) p.inv--;
+  if (p.onGround){
+    const f = Math.round((GROUND - (p.y + p.h)) / FS);
+    if (f > landed){
+      landed = f;
+      camTarget = Math.max(0, Math.min(camTarget, floorY(f) + 36 - VHP));
+      const g = gradeOf(f);
+      if (g < S.grade){
+        S.grade = g; S.score += 1000; popup('1000', p.x, p.y - 8, '#6fe3d4');
+        if (f >= NF){ S.state = 'summit'; S.timer = 0; S.bonus = 3000 + S.drops*500; sfx.summit(); return; }
+        sfx.grade(); showBanner(g); return;
+      }
+    }
+  }
+  if (p.y > camY + VHP + 6) hurt(true);
+}
+function swingBox(){
+  const p = player;
+  if (p.swing < 3 || p.swing > 15) return null;
+  return {x: p.face > 0 ? p.x + p.w : p.x - 14, y: p.y + 3, w:14, h:10};
+}
+function knock(e, pts){ e.dying = true; e.vy = -3; e.vx = player.face * 1.5; S.score += pts; popup(String(pts), e.x, e.y); sfx.hit(); }
+function updateEnemies(){
+  const sb = swingBox(), p = player;
+  const g = S.grade, mul = 1 + (S.level - 1)*0.15;
+  if (--flyTimer <= 0){
+    flyTimer = Math.max(160, 480 - g*60) / mul;
+    const fromLeft = Math.random() < 0.5, kind = g >= 2 || Math.random() < 0.5 ? 'viento' : 'pantalla';
+    const by = camY + 30 + Math.random()*(VHP - 90);
+    enemies.push({type:kind, x: fromLeft ? LEFT - 14 : RIGHT, y:by, by, w:14, h:10, vx:(fromLeft ? 1 : -1)*(0.7 + g*0.1)*mul, vy:0, t:0});
+  }
+  for (const e of enemies){
+    if (e.dying){ e.vy += 0.25; e.y += e.vy; e.x += e.vx; if (e.y > camY + VHP + 40) e.remove = true; continue; }
+    if (e.type === 'mancha'){
+      e.vy = Math.min(e.vy + 0.25, 4);
+      if (e.onGround){
+        const ax = e.vx > 0 ? e.x + e.w + 1 : e.x - 1;
+        if (!solidAt(ax, e.y + e.h + 1)) e.vx = -e.vx;
+      }
+      if (moveX(e)) e.vx = -e.vx;
+      moveY(e);
+      if (e.y > camY + VHP + 120) e.remove = true;
+    } else {
+      e.t++; e.x += e.vx; e.y = e.by + Math.sin(e.t*0.06)*10;
+      if (e.x < LEFT - 20 || e.x > RIGHT + 6) e.remove = true;
+    }
+    if (sb && overlap(sb, e)){ knock(e, e.type === 'mancha' ? 400 : 800); continue; }
+    const body = {x:p.x + 1, y:p.y + 2, w:p.w - 2, h:p.h - 2};
+    if (p.inv === 0 && overlap(body, e)) hurt(false);
+  }
+  enemies = enemies.filter(e => !e.remove);
+}
+function updateMisc(){
+  for (const d of drops) if (!d.taken && overlap(player, d)){
+    d.taken = true; S.drops++; S.score += 300; popup('300', d.x - 4, d.y - 6, '#9fe8ff'); sfx.coin();
+  }
+  for (const f of frags){ f.vy += 0.25; f.x += f.vx; f.y += f.vy; }
+  frags = frags.filter(f => f.y < camY + VHP + 20);
+  for (const p of pops){ p.t--; p.y -= 0.5; }
+  pops = pops.filter(p => p.t > 0);
+  if (camY > camTarget) camY = Math.max(camTarget, camY - 1.5);
+  if (S.dotsShown > GRADES[S.grade].dots) S.dotsShown = Math.max(GRADES[S.grade].dots, S.dotsShown - 1);
+}
+function hurt(fell){
+  if (S.state !== 'play') return;
+  S.state = 'dying'; S.timer = 0; player.vy = fell ? 0 : -4; sfx.die();
+}
+function respawn(){
+  let f = 0;
+  for (let k=NF; k>=0; k--) if (floorY(k) < camY + VHP - 12){ f = k; }
+  const p = player;
+  let c = 6;
+  if (f > 0){
+    c = -1;
+    for (let k=5; k<26; k++) if (FL[f][k] !== '.' && FL[f][k+1] !== '.'){ c = k; break; }
+    if (c < 0){ c = 16; FL[f][16] = FL[f][17] = 'B'; }
+  }
+  Object.assign(p, {x:c*8, y:floorY(f) - 16, vx:0, vy:0, swing:0, inv:120, onGround:true});
+  enemies = enemies.filter(e => e.type === 'mancha' && !e.dying);
+}
+
+function step(){
+  S.frame++;
+  if (pressed.pause && S.state === 'play'){ S.paused = !S.paused; sfx.pause(); }
+  if (S.paused){ pressed = {}; return; }
+  switch (S.state){
+    case 'title': if (pressed.start || pressed.jump) startGame(); break;
+    case 'banner':
+      S.timer++; updateMisc();
+      if (S.timer > 330 || (S.timer > 45 && (pressed.jump || pressed.start))){ S.state = 'play'; for (const k in keys) keys[k] = 0; }
+      break;
+    case 'play':
+      updatePlayer(); if (S.state !== 'play') break;
+      updateEnemies(); updateMisc();
+      break;
+    case 'dying':
+      S.timer++; player.vy += 0.25; player.y += player.vy; updateMisc();
+      if (S.timer > 100){
+        S.lives--;
+        if (S.lives <= 0){ saveHi(); S.state = 'gameover'; S.timer = 0; }
+        else { respawn(); S.state = 'play'; }
+      }
+      break;
+    case 'summit':
+      S.timer++; updateMisc();
+      if (S.timer > 120 && S.bonus > 0){ const d = Math.min(S.bonus, 100); S.bonus -= d; S.score += d; if (S.frame % 4 === 0) sfx.tick(); }
+      if (S.timer > 140 && S.bonus === 0){ saveHi(); S.state = 'clear'; S.timer = 0; }
+      break;
+    case 'clear':
+      S.timer++;
+      if (S.timer > 40 && (pressed.start || pressed.jump)){ S.level++; S.drops = 0; resetWorld(); showBanner(4); }
+      break;
+    case 'gameover':
+      S.timer++;
+      if ((S.timer > 60 && (pressed.start || pressed.jump)) || S.timer > 400){ S.state = 'title'; resetWorld(); }
+      break;
+  }
+  pressed = {};
+}
+
+/* ---------- drawing ---------- */
+const sy = y => Math.round(y - camY) + HUD;
+function drawBrick(g, x, y, kind){
+  const [c, d, l] = BRICK[g];
+  if (kind === 'S'){ R(b, d, x, y, 8, 8); R(b, c, x + 1, y + 1, 6, 5); R(b, l, x + 1, y + 1, 6, 1); return; }
+  R(b, c, x, y, 8, 8); R(b, l, x, y, 8, 1); R(b, l, x, y + 4, 8, 1);
+  R(b, d, x, y + 3, 8, 1); R(b, d, x, y + 7, 8, 1); R(b, d, x + 5, y, 1, 3); R(b, d, x + 1, y + 4, 1, 3);
+}
+function drawPillars(){
+  // rock columns on both sides, coloured by the grade of each band
+  for (let f=0; f<=NF; f++){
+    const top = f === NF ? -400 : floorY(f + 1) + 8, bot = f === 0 ? WORLD_H : floorY(f) + 8;
+    const y0 = Math.max(HUD, sy(top)), y1 = Math.min(VH, sy(bot));
+    if (y1 <= y0) continue;
+    const [c, d, l] = BRICK[gradeOf(f)];
+    const r = lcg(f*71 + 5);
+    for (let y = y0; y < y1; y++){
+      const wy = y - HUD + Math.round(camY);
+      const jag = (wy >> 3) % 3;
+      R(b, c, 0, y, LEFT - jag, 1); R(b, c, RIGHT + jag, y, PW - RIGHT - jag, 1);
+      R(b, d, LEFT - jag - 1, y, 1, 1); R(b, d, RIGHT + jag, y, 1, 1);
+    }
+    for (let k=0; k<26; k++){
+      const yy = y0 + Math.floor(r()*(y1 - y0)), side = r() < 0.5, xx = side ? 2 + r()*22 : RIGHT + 4 + r()*22;
+      R(b, k & 1 ? d : l, Math.round(xx), yy, 2, 1);
+    }
+  }
+}
+function drawFloors(){
+  for (let f=1; f<=NF; f++){
+    const y = sy(floorY(f)); if (y < HUD - 8 || y > VH) continue;
+    const g = gradeOf(f);
+    for (let c=4; c<28; c++){ const t = FL[f][c]; if (t !== '.') drawBrick(g, c*8, y, t); }
+  }
+  const gy = sy(GROUND);
+  if (gy < VH) for (let c=4; c<28; c++) drawBrick(4, c*8, gy, 'B');
+  // summit: the healthy eye and the INOP flag
+  const s0 = sy(floorY(NF));
+  if (s0 > HUD && s0 < VH + 60){
+    const cx = 128, cy = s0 - 30;
+    b.fillStyle = '#f4f8ff'; b.beginPath(); b.ellipse(cx, cy, 30, 15, 0, 0, Math.PI*2); b.fill();
+    b.fillStyle = '#2e86de'; b.beginPath(); b.arc(cx, cy, 11, 0, Math.PI*2); b.fill();
+    b.fillStyle = '#5fb0ff'; b.beginPath(); b.arc(cx, cy, 7, 0, Math.PI*2); b.fill();
+    b.fillStyle = '#0b0b0b'; b.beginPath(); b.arc(cx, cy, 4, 0, Math.PI*2); b.fill();
+    R(b, '#ffffff', cx - 5, cy - 6, 3, 3);
+    R(b, '#d9e3ea', 190, s0 - 40, 2, 40); R(b, '#0f7c6f', 192, s0 - 40, 20, 12); R(b, '#6fe3d4', 192, s0 - 40, 20, 2);
+  }
+}
+function drawBottle(x, y){
+  R(b, '#2e86de', x + 1, y, 3, 2); R(b, '#f4f8ff', x, y + 2, 5, 7); R(b, '#4fb3ff', x + 2, y + 4, 1, 3); R(b, '#b9c9da', x, y + 8, 5, 1);
+}
+function drawPlayer(){
+  const p = player;
+  if (p.inv > 0 && (S.frame & 4) && S.state === 'play') return;
+  const x = Math.round(p.x) - 3, y = sy(p.y), f = p.face;
+  const P = (px, py, w, h, col) => R(b, col, x + (f > 0 ? px : 16 - px - w), y + py, w, h);
+  const walk = p.onGround && p.vx ? Math.floor(S.frame/6) % 2 : 0;
+  // lubricant bottle on the back
+  P(0, 4, 4, 1, '#2e86de'); P(0, 5, 4, 7, '#f4f8ff'); P(1, 7, 2, 3, '#4fb3ff'); P(0, 11, 4, 1, '#b9c9da');
+  // legs
+  if (!p.onGround){ P(4, 12, 2, 3, '#1f3a7a'); P(9, 11, 2, 3, '#1f3a7a'); P(4, 15, 2, 1, '#3b2616'); P(9, 14, 3, 1, '#3b2616'); }
+  else if (walk){ P(4, 12, 2, 3, '#1f3a7a'); P(9, 12, 2, 4, '#1f3a7a'); P(3, 15, 3, 1, '#3b2616'); P(9, 15, 3, 1, '#3b2616'); }
+  else { P(5, 12, 2, 3, '#1f3a7a'); P(9, 12, 2, 3, '#1f3a7a'); P(5, 15, 3, 1, '#3b2616'); P(9, 15, 3, 1, '#3b2616'); }
+  // body: INOP teal coat
+  P(4, 6, 8, 6, '#18a596'); P(6, 6, 3, 1, '#ffffff'); P(7, 8, 1, 3, '#0f7c6f');
+  // head
+  P(5, 1, 6, 5, '#f5bd8e'); P(5, 0, 6, 2, '#4a2a12'); P(5, 2, 1, 2, '#4a2a12'); P(9, 3, 1, 1, '#141414');
+  // retinoscope (the hammer)
+  const HAND = '#2b2b2b', HEAD = '#8a96a8', LIGHT = '#ffd23f';
+  if (p.swing > 0){
+    P(10, 8, 3, 2, '#f5bd8e'); P(12, 8, 6, 2, HAND); P(17, 5, 4, 6, HEAD); P(21, 7, 1, 2, LIGHT);
+    if (p.swing > 6 && p.swing < 16) P(22, 7, 8, 2, '#fff59d');
+  } else if (!p.onGround){
+    P(10, 2, 2, 4, '#f5bd8e'); P(10, -4, 2, 6, HAND); P(9, -8, 4, 4, HEAD); P(10, -9, 2, 1, LIGHT);
+  } else {
+    P(10, 7, 2, 3, '#f5bd8e'); P(11, 9, 2, 4, HAND); P(11, 6, 3, 3, HEAD); P(14, 7, 1, 1, LIGHT);
+  }
+}
+function drawMancha(g, x, y, vx, wave){
+  // a furry dry-spot creature (Topi style) dotted with fluorescein staining
+  R(g, '#b9c9da', x + 2, y, 8, 1); R(g, '#f4f8ff', x + 1, y + 1, 10, 7); R(g, '#b9c9da', x + 1, y + 7, 10, 1);
+  R(g, '#b6ff3b', x + 2, y + 5, 1, 1); R(g, '#b6ff3b', x + 5, y + 6, 1, 1); R(g, '#b6ff3b', x + 9, y + 5, 1, 1);
+  const o = vx > 0 ? 1 : 0, fx = vx > 0 ? 7 : 2;
+  R(g, '#2e86de', x + fx, y + 2, 2, 2); R(g, '#141414', x + fx + o, y + 3, 1, 1);
+  R(g, '#ff8fb0', vx > 0 ? x + 10 : x, y + 4, 2, 1);
+  R(g, '#8ea6cc', wave ? x + 2 : x + 3, y + 8, 2, 2); R(g, '#8ea6cc', wave ? x + 8 : x + 7, y + 8, 2, 2);
+}
+function drawViento(g, x, y, t){
+  // dry-air bird (Nitpicker style)
+  const up = (t >> 3) & 1, dir = 1;
+  R(g, '#ff8fb0', x + 3, y + 3, 8, 4); R(g, '#ff5f8f', x + 3, y + 6, 8, 1);
+  R(g, '#ffd23f', x + 11, y + 4, 3, 1);
+  R(g, '#ffffff', x + 9, y + 3, 1, 1);
+  if (up){ R(g, '#ffc0d4', x + 4, y, 5, 3); } else { R(g, '#ffc0d4', x + 4, y + 7, 5, 3); }
+  R(g, '#ff5f8f', x, y + 4, 3, 2);
+}
+function drawPantalla(g, x, y, t){
+  R(g, '#1b2b4a', x + 3, y - 1, 8, 12); R(g, '#5fd0ff', x + 4, y, 6, 9); R(g, '#bff0ff', x + 5, y + 1, 2, 1);
+  R(g, '#e8f1ff', x + 6, y + 10, 2, 1);
+  if ((t >> 3) & 1){ R(g, 'rgba(95,208,255,.6)', x, y + 3, 2, 1); R(g, 'rgba(95,208,255,.6)', x + 12, y + 5, 2, 1); }
+}
+function drawEnemies(){
+  for (const e of enemies){
+    const x = Math.round(e.x), y = sy(e.y);
+    if (y < HUD - 12 || y > VH) continue;
+    if (e.type === 'mancha') drawMancha(b, x, y, e.vx, (S.frame >> 3) & 1);
+    else if (e.type === 'viento') drawViento(b, x, y, e.t);
+    else drawPantalla(b, x, y, e.t);
+  }
+}
+function drawDrops(){
+  for (const d of drops){
+    if (d.taken) continue;
+    const x = Math.round(d.x), y = sy(d.y) + Math.round(Math.sin(S.frame/10 + d.x)*1.5);
+    R(b, '#4fb3ff', x + 2, y, 2, 2); R(b, '#4fb3ff', x + 1, y + 2, 4, 2); R(b, '#4fb3ff', x, y + 4, 6, 3); R(b, '#4fb3ff', x + 1, y + 7, 4, 1);
+    R(b, '#bff0ff', x + 1, y + 4, 1, 2);
+  }
+}
+function render(){
+  b.imageSmoothingEnabled = false;
+  R(b, '#000000', 0, 0, VW, VH);
+  drawPillars(); drawFloors(); drawDrops(); drawEnemies();
+  if (S.state !== 'title' && S.state !== 'gameover') drawPlayer();
+  for (const f of frags) R(b, f.col, Math.round(f.x), sy(f.y), 3, 3);
+  for (let i=0; i<Math.max(0, S.lives - 1) && i<3; i++) drawBottle(VW - 12 - i*8, VH - 12);
+  R(b, '#000000', 0, 0, VW, HUD); R(b, '#4fb3ff', 0, HUD - 1, VW, 1);
+  drawCornea(b, 246, 10, 8, S.grade, S.dotsShown * 1);
+  if (S.state === 'title') drawTitleSprites();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(buf, 0, 0, cv.width, cv.height);
+  const k = SC * DPR; ctx.setTransform(k, 0, 0, k, 0, 0); ctx.imageSmoothingEnabled = false;
+  drawOverlay();
+}
+
+/* ---------- text: accents and Ñ drawn by hand (the pixel font has no accented capitals) ---------- */
+const ACC = {'Á':['A',1],'É':['E',1],'Í':['I',1],'Ó':['O',1],'Ú':['U',1],'Ñ':['N',2]};
+function txt(s, x, y, col='#ffffff', size=8, align='left'){
+  const chars = [...s], plain = chars.map(ch => ACC[ch] ? ACC[ch][0] : ch).join('');
+  ctx.font = size + 'px "Press Start 2P", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  const w = ctx.measureText(plain).width, cw = w / Math.max(1, chars.length);
+  const x0 = align === 'center' ? x - w/2 : align === 'right' ? x - w : x;
+  for (const [o, fill] of [[size/8, 'rgba(0,0,0,.6)'], [0, col]]){
+    ctx.fillStyle = fill; ctx.fillText(plain, x0 + o, y + o);
+    chars.forEach((ch, i) => {
+      const a = ACC[ch]; if (!a) return;
+      const u = size/8, ax = x0 + o + i*cw;
+      if (a[1] === 1){ ctx.fillRect(ax + cw*0.4, y + o - 2*u, 2*u, u); ctx.fillRect(ax + cw*0.4 + u, y + o - 3*u, 2*u, u); }
+      else { ctx.fillRect(ax + u, y + o - 2*u, 2*u, u); ctx.fillRect(ax + 3*u, y + o - 3*u, 2*u, u); ctx.fillRect(ax + 5*u, y + o - 2*u, u, u); }
+    });
+  }
+}
+function wrap(s, max){
+  const out = []; let line = '';
+  for (const w of s.split(' ')){ if ((line + ' ' + w).trim().length > max){ out.push(line); line = w; } else line = (line + ' ' + w).trim(); }
+  if (line) out.push(line);
+  return out;
+}
+const pad = (n, l) => String(n).padStart(l, '0');
+function panel(x, y, w, h){
+  ctx.fillStyle = 'rgba(5,11,24,.93)'; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#6fe3d4'; ctx.fillRect(x, y, w, 2); ctx.fillRect(x, y + h - 2, w, 2);
+}
+function drawOverlay(){
+  txt('INOP', 4, 2, '#6fe3d4', 6); txt(pad(S.score, 6), 4, 10, '#ffffff', 8);
+  txt('GOTAS', 66, 2, '#9fe8ff', 6); txt('x' + pad(S.drops, 2), 66, 10, '#ffffff', 8);
+  txt('RÉCORD', 120, 2, '#fce0a8', 6); txt(pad(Math.max(S.hi, S.score), 6), 112, 10, '#ffffff', 8);
+  const G = GRADES[S.grade];
+  txt('EFRON', 234, 2, '#8ea6cc', 5, 'right'); txt(G.n, 234, 10, G.col, 8, 'right');
+  // grade numbers in black boxes on both rock columns, like the floor numbers of the arcade
+  if (S.state !== 'title') for (let f=0; f<NF; f++){
+    const y = sy(floorY(f)) - 30; if (y < HUD + 2 || y > VH - 12) continue;
+    const g = GRADES[gradeOf(f)];
+    for (const x of [16, 240]){
+      ctx.fillStyle = '#000000'; ctx.fillRect(x - 7, y - 2, 14, 12);
+      ctx.fillStyle = BRICK[gradeOf(f)][1]; ctx.fillRect(x - 7, y - 2, 14, 1); ctx.fillRect(x - 7, y + 9, 14, 1);
+      txt(g.n, x + 0.5, y, '#ffffff', 8, 'center');
+    }
+  }
+  if (S.state !== 'title' && S.state !== 'gameover') txt('© INOP INGENIERÍA ÓPTICA', 128, VH - 7, 'rgba(111,227,212,.8)', 4, 'center');
+  for (const p of pops) txt(p.text, p.x, sy(p.y), p.col, 6, 'center');
+
+  if (S.state === 'banner'){
+    const g = S.banner, G2 = GRADES[g], lines = wrap(G2.fact, 22), h = Math.max(96, 46 + lines.length*10);
+    const y = 56;
+    panel(16, y, 224, h);
+    txt('EFRON ' + G2.n + ' · ' + G2.name, 128, y + 9, G2.col, 8, 'center');
+    ctx.save(); drawCornea(ctx, 50, y + 50, 22, g, G2.dots); ctx.restore();
+    txt('TINCIÓN', 50, y + h - 14, '#8ea6cc', 4, 'center');
+    txt('DATO INOP', 160, y + 24, '#6fe3d4', 5, 'center');
+    lines.forEach((l, i) => txt(l, 160, y + 34 + i*10, '#ffffff', 6, 'center'));
+    if (S.timer > 45 && ((S.frame >> 5) & 1)) txt('SALTA PARA SEGUIR', 160, y + h - 12, '#fce0a8', 5, 'center');
+  }
+  if (S.state === 'summit'){
+    panel(48, 90, 160, 54);
+    txt('¡EFRON 0!', 128, 100, '#9fe8ff', 10, 'center');
+    txt('CÓRNEA SANA', 128, 116, '#ffffff', 8, 'center');
+    txt('BONO ' + pad(S.bonus, 5), 128, 130, '#fce0a8', 6, 'center');
+  }
+  if (S.state === 'clear'){
+    const lines = wrap(GRADES[0].fact, 30);
+    panel(16, 40, 224, 160);
+    txt('¡CÓRNEA SANA!', 128, 50, '#9fe8ff', 10, 'center');
+    txt('LUBRI CURÓ EL OJO SECO', 128, 68, '#ffffff', 6, 'center');
+    txt('DEL GRADO 4 AL 0 DE EFRON', 128, 78, '#ffffff', 6, 'center');
+    txt('PUNTOS ' + pad(S.score, 6), 128, 94, '#fce0a8', 8, 'center');
+    txt('DATO INOP', 128, 112, '#6fe3d4', 5, 'center');
+    lines.forEach((l, i) => txt(l, 128, 124 + i*10, '#ffffff', 6, 'center'));
+    if ((S.frame >> 5) & 1) txt('ENTER: SIGUIENTE OJO', 128, 184, '#6fe3d4', 6, 'center');
+  }
+  if (S.state === 'gameover'){
+    panel(48, 90, 160, 60);
+    txt('FIN DEL JUEGO', 128, 102, '#ff4d4d', 8, 'center');
+    txt('EL OJO SECO TIENE CURA:', 128, 120, '#ffffff', 6, 'center');
+    txt('VISITA INOP', 128, 132, '#6fe3d4', 6, 'center');
+  }
+  if (S.state === 'title'){
+    txt('LUBRI', 128, 28, '#4fb3ff', 16, 'center');
+    txt('CLIMBER', 128, 46, '#4fb3ff', 16, 'center');
+    txt('OJO SECO · ESCALA DE EFRON', 128, 68, '#fce0a8', 6, 'center');
+    txt('INOP INGENIERÍA ÓPTICA', 128, 78, '#6fe3d4', 6, 'center');
+    txt('LUBRI Y SU RETINOSCOPIO', 76, 98, '#ffffff', 6);
+    txt('MANCHA SECA', 76, 116, '#e8f1ff', 6);
+    txt('AIRE SECO Y PANTALLAS', 76, 134, '#ff8fb0', 6);
+    txt('GOTA DE LUBRICANTE 300', 76, 152, '#9fe8ff', 6);
+    txt('SUBE DEL GRADO 4 AL 0', 128, 172, '#fce0a8', 6, 'center');
+    if ((S.frame >> 5) & 1) txt('PRESIONA ENTER', 128, 188, '#ffffff', 8, 'center');
+    txt('RÉCORD ' + pad(S.hi, 6), 128, 204, '#8ea6cc', 6, 'center');
+    txt('© INOP INGENIERÍA ÓPTICA', 128, 224, '#6fe3d4', 5, 'center');
+  }
+  if (S.paused){
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, VW, VH);
+    txt('PAUSA', 128, 110, '#ffffff', 10, 'center');
+  }
+  if (muted) txt('SIN SONIDO', 222, VH - 8, '#fce0a8', 5, 'right');
+}
+function drawTitleSprites(){
+  R(b, 'rgba(0,0,0,.85)', 0, HUD, PW, VHP);
+  const save = {...player};
+  Object.assign(player, {x:52, y:camY + 92 - HUD, face:1, onGround:true, vx:0, swing:(S.frame % 90) < 18 ? 18 - (S.frame % 90) : 0, inv:0});
+  drawPlayer();
+  Object.assign(player, save);
+  drawMancha(b, 54, 114, 1, (S.frame >> 3) & 1);
+  drawViento(b, 52, 130, S.frame);
+  drawPantalla(b, 36, 131, S.frame);
+  const x = 56, y = 149;
+  R(b, '#4fb3ff', x + 2, y, 2, 2); R(b, '#4fb3ff', x + 1, y + 2, 4, 2); R(b, '#4fb3ff', x, y + 4, 6, 3); R(b, '#4fb3ff', x + 1, y + 7, 4, 1);
+}
+
+/* ---------- loop ---------- */
+let last = performance.now(), acc = 0;
+function loop(now){
+  acc += Math.min(100, now - last); last = now;
+  while (acc >= 1000/60){ step(); acc -= 1000/60; }
+  render();
+  requestAnimationFrame(loop);
+}
+if (document.fonts && document.fonts.load) document.fonts.load('8px "Press Start 2P"').catch(() => {});
+requestAnimationFrame(loop);
+})();
+</script>
+</body></html>

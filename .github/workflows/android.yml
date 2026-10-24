@@ -33,7 +33,7 @@ jobs:
           mkdir -p $A
           cp android/fonts/PressStart2P-latin.woff2 android/menu.html $A/
           mv $A/menu.html $A/index.html
-          for g in lubri-climber pupi-man-bacterias pupi-man super-inop; do
+          for g in lubri-climber lubri-climber-efron pupi-man-bacterias pupi-man super-inop; do
             sed 's#</title>#</title><style>@font-face{font-family:"Press Start 2P";src:url(PressStart2P-latin.woff2) format("woff2")}</style>#' \
               juegos/$g/index.html > $A/$g.html
           done

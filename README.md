@@ -10,6 +10,7 @@ Juegos clásicos remasterizados con estética 8 bits como ejercicios de optometr
 | Pupi-Man | Pac-Man | [`juegos/pupi-man`](juegos/pupi-man/index.html) |
 | Pupi-Man vs Bacterias | Pac-Man | [`juegos/pupi-man-bacterias`](juegos/pupi-man-bacterias/index.html) |
 | Lubri Climber | Ice Climber | [`juegos/lubri-climber`](juegos/lubri-climber/index.html) |
+| Lubri Climber Efron | Ice Climber | [`juegos/lubri-climber-efron`](juegos/lubri-climber-efron/index.html) |
 
 ### Súper INOP
 
@@ -38,6 +39,10 @@ Para jugar, abre `juegos/pupi-man-bacterias/index.html` en el navegador.
 Ojo seco con la escala de Oxford. Lubri, con su tarrito de lubricante en la espalda, rompe el techo con un retinoscopio y sube la montaña: abajo está el grado V (severo) y arriba el grado 0 (ojo sano). Cada dos pisos mejora un grado; el panel de la derecha muestra la córnea teñida con fluoresceína y los puntos verdes desaparecen a medida que sube. Los enemigos son manchas secas, viento y pantallas. En cada grado aparece un Dato INOP.
 
 Controles: flechas para moverse, Espacio para saltar, X para el retinoscopio, Enter para empezar, P pausa, M sonido. En el celular hay botones en pantalla.
+
+### Lubri Climber Efron
+
+Versión de Lubri Climber con la escala de Efron (grados 0 a 4 de tinción corneal) y el aspecto del Ice Climber original: fondo negro, columnas de roca con el grado en cada piso y ladrillos verdes, cafés y de hielo. Cada grado muestra un Dato INOP con la córnea teñida de ese grado.
 
 ## App para Android
 
