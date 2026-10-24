@@ -8,6 +8,7 @@ Juegos clásicos remasterizados con estética 8 bits como ejercicios de optometr
 |---|---|---|
 | Súper INOP | Super Mario Bros. (mundo 1-1) | [`juegos/super-inop`](juegos/super-inop/index.html) |
 | Pupi-Man | Pac-Man | [`juegos/pupi-man`](juegos/pupi-man/index.html) |
+| Pupi-Man vs Bacterias | Pac-Man | [`juegos/pupi-man-bacterias`](juegos/pupi-man-bacterias/index.html) |
 
 ### Súper INOP
 
@@ -24,3 +25,9 @@ Pupi es un ojo que recorre la retina comiendo puntos. Los fantasmas son los defe
 Controles: flechas o WASD para moverse, Enter para empezar, P pausa, M sonido. En el celular se juega deslizando el dedo o con la cruceta.
 
 Para jugar, abre `juegos/pupi-man/index.html` en el navegador.
+
+### Pupi-Man vs Bacterias
+
+Variación de Pupi-Man firmada por INOP Ingeniería Óptica. Pupi recoge goticas de lubricante y los enemigos son bacterias que afectan el ojo: Estafilococo, Pseudomona, Estreptococo y Clamidia. Los antibióticos de las esquinas las debilitan (se ponen pálidas) y Pupi puede atraparlas. Al limpiar el nivel: ¡Ojo sano!
+
+Para jugar, abre `juegos/pupi-man-bacterias/index.html` en el navegador.
