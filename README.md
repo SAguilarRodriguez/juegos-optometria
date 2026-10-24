@@ -9,6 +9,7 @@ Juegos clásicos remasterizados con estética 8 bits como ejercicios de optometr
 | Súper INOP | Super Mario Bros. (mundo 1-1) | [`juegos/super-inop`](juegos/super-inop/index.html) |
 | Pupi-Man | Pac-Man | [`juegos/pupi-man`](juegos/pupi-man/index.html) |
 | Pupi-Man vs Bacterias | Pac-Man | [`juegos/pupi-man-bacterias`](juegos/pupi-man-bacterias/index.html) |
+| Lubri Climber | Ice Climber | [`juegos/lubri-climber`](juegos/lubri-climber/index.html) |
 
 ### Súper INOP
 
@@ -32,10 +33,16 @@ Variación de Pupi-Man firmada por INOP Ingeniería Óptica. Pupi recoge goticas
 
 Para jugar, abre `juegos/pupi-man-bacterias/index.html` en el navegador.
 
+### Lubri Climber
+
+Ojo seco con la escala de Oxford. Lubri, con su tarrito de lubricante en la espalda, rompe el techo con un retinoscopio y sube la montaña: abajo está el grado V (severo) y arriba el grado 0 (ojo sano). Cada dos pisos mejora un grado; el panel de la derecha muestra la córnea teñida con fluoresceína y los puntos verdes desaparecen a medida que sube. Los enemigos son manchas secas, viento y pantallas. En cada grado aparece un Dato INOP.
+
+Controles: flechas para moverse, Espacio para saltar, X para el retinoscopio, Enter para empezar, P pausa, M sonido. En el celular hay botones en pantalla.
+
 ## App para Android
 
-Pupi-Man vs Bacterias también se instala como app en el celular. Cada vez que cambia el juego, GitHub compila un APK nuevo (ver `.github/workflows/android.yml` y la carpeta `android/`).
+La app **Juegos INOP** trae un menú con todos los juegos y funciona sin internet. Cada vez que cambia un juego, GitHub compila un APK nuevo (ver `.github/workflows/android.yml` y la carpeta `android/`).
 
-Descarga directa desde el celular: https://github.com/SAguilarRodriguez/juegos-optometria/releases/latest/download/PupiMan-INOP.apk
+Descarga directa desde el celular: https://github.com/SAguilarRodriguez/juegos-optometria/releases/latest/download/Juegos-INOP.apk
 
-La app funciona sin internet. La fuente Press Start 2P va incluida bajo la licencia SIL Open Font License.
+La fuente Press Start 2P va incluida bajo la licencia SIL Open Font License.

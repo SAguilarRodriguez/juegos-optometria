@@ -8,7 +8,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
-/** Shows the game (assets/index.html) full screen, without internet. */
+/** Shows the games menu (assets/index.html) full screen, without internet. */
 public class MainActivity extends Activity {
     private WebView web;
 
@@ -43,6 +43,13 @@ public class MainActivity extends Activity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) hideSystemBars();
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() {
+        if (web.canGoBack()) web.goBack();
+        else super.onBackPressed();
     }
 
     @Override

@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'juegos/pupi-man-bacterias/**'
+      - 'juegos/**'
       - 'android/**'
       - '.github/workflows/android.yml'
   workflow_dispatch:
@@ -27,22 +27,30 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Copiar el juego dentro de la app (con la fuente, para jugar sin internet)
+      - name: Copiar los juegos dentro de la app (con la fuente, para jugar sin internet)
         run: |
-          mkdir -p android/app/src/main/assets
-          cp android/fonts/PressStart2P-latin.woff2 android/app/src/main/assets/
-          sed 's#</title>#</title><style>@font-face{font-family:"Press Start 2P";src:url(PressStart2P-latin.woff2) format("woff2")}</style>#' \
-            juegos/pupi-man-bacterias/index.html > android/app/src/main/assets/index.html
+          A=android/app/src/main/assets
+          mkdir -p $A
+          cp android/fonts/PressStart2P-latin.woff2 android/menu.html $A/
+          mv $A/menu.html $A/index.html
+          for g in lubri-climber pupi-man-bacterias pupi-man super-inop; do
+            sed 's#</title>#</title><style>@font-face{font-family:"Press Start 2P";src:url(PressStart2P-latin.woff2) format("woff2")}</style>#' \
+              juegos/$g/index.html > $A/$g.html
+          done
 
       - name: Compilar APK
         run: gradle -p android assembleDebug
 
-      - run: cp android/app/build/outputs/apk/debug/app-debug.apk PupiMan-INOP.apk
+      - run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk Juegos-INOP.apk
+          cp Juegos-INOP.apk PupiMan-INOP.apk
 
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-${{ github.run_number }}
-          name: Pupi-Man INOP para Android (versión ${{ github.run_number }})
-          body: Descarga PupiMan-INOP.apk en el celular y ábrelo para instalarlo.
-          files: PupiMan-INOP.apk
+          name: Juegos INOP para Android (versión ${{ github.run_number }})
+          body: Descarga Juegos-INOP.apk en el celular y ábrelo para instalarlo.
+          files: |
+            Juegos-INOP.apk
+            PupiMan-INOP.apk
           make_latest: true

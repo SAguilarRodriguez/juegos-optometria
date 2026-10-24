@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Juegos INOP</title>
+<style>
+  @font-face{font-family:"Press Start 2P";src:url(PressStart2P-latin.woff2) format("woff2")}
+  :root{color-scheme:dark;--ground:#050b18;--panel:#12213f;--ink:#e8f1ff;--muted:#8ea6cc;--accent:#6fe3d4;--gold:#ffd23f}
+  html,body{height:100%;margin:0}
+  body{background:var(--ground);color:var(--ink);font-family:"Press Start 2P",ui-monospace,monospace;
+    padding:max(24px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));box-sizing:border-box}
+  main{max-width:440px;margin-inline:auto;display:flex;flex-direction:column;gap:16px}
+  h1{font-size:22px;line-height:1.4;margin:8px 0 0;color:#4fb3ff;text-align:center;text-wrap:balance}
+  .brand{font:bold 14px/1.4 ui-monospace,monospace;letter-spacing:.08em;color:var(--accent);text-align:center;margin:0 0 8px}
+  a{display:flex;flex-direction:column;gap:8px;padding:16px;border:3px solid #2c4474;border-radius:12px;background:var(--panel);color:var(--ink);text-decoration:none}
+  a:active{filter:brightness(1.3);transform:scale(.98)}
+  a b{font-size:13px;color:var(--gold);font-weight:normal}
+  a span{font-size:9px;line-height:1.7;color:var(--muted)}
+  footer{font-size:8px;color:var(--muted);text-align:center;margin-top:8px;line-height:1.8}
+</style>
+</head>
+<body>
+<main>
+  <h1>JUEGOS INOP</h1>
+  <p class="brand">INOP Ingeniería Óptica</p>
+  <a href="lubri-climber.html"><b>Lubri Climber</b><span>Ojo seco: sube del grado V al 0 de la escala de Oxford con lubricante.</span></a>
+  <a href="pupi-man-bacterias.html"><b>Pupi-Man vs Bacterias</b><span>Atrapa las bacterias del ojo con antibióticos.</span></a>
+  <a href="pupi-man.html"><b>Pupi-Man</b><span>Las gafas corrigen los defectos refractivos.</span></a>
+  <a href="super-inop.html"><b>Súper INOP</b><span>Recoge lentes y llega a la Óptica INOP.</span></a>
+  <footer>Usa el botón atrás del celular para volver a este menú.</footer>
+</main>
+</body>
+</html>
