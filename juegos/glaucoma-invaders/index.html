@@ -1,0 +1,496 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}</style></head><body>
+<title>Glaucoma Invaders</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<style>
+  /* Arcade cabinet: portrait invaders screen, touch pad below on phones. Single dark look on purpose. */
+  :root{
+    color-scheme: dark;
+    --ground:#050b18; --panel:#12213f; --ink:#e8f1ff; --muted:#8ea6cc; --accent:#6fe3d4; --gold:#ffd23f;
+  }
+  html,body{height:100%}
+  body{background:var(--ground);color:var(--ink);font-family:"Press Start 2P",ui-monospace,monospace;overflow:hidden}
+  #app{height:100%;display:flex;flex-direction:column;box-sizing:border-box;
+    padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  #stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding-block:10px}
+  #game{display:block;image-rendering:pixelated;border-radius:4px;box-shadow:0 0 0 3px var(--panel),0 12px 40px rgba(0,0,0,.5);outline:none;touch-action:none}
+  #game:focus-visible{box-shadow:0 0 0 3px var(--accent),0 12px 40px rgba(0,0,0,.5)}
+  #pad{display:none;flex-direction:column;gap:10px;max-width:440px;width:100%;margin-inline:auto;padding-block:6px;user-select:none;-webkit-user-select:none}
+  #pad .row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  #pad .grp{display:flex;gap:12px}
+  #pad button{font:inherit;color:var(--ink);background:var(--panel);border:3px solid #2c4474;touch-action:none}
+  #pad .big{width:72px;height:72px;border-radius:50%;font-size:16px}
+  #pad .act{width:92px;height:92px;border-radius:50%;font-size:10px;background:#b8321f;border-color:#e0664f}
+  #pad .small{flex:1;height:40px;border-radius:20px;font-size:9px}
+  #pad .small.go{background:#1c7d72;border-color:var(--accent)}
+  #pad button:active{transform:scale(.94);filter:brightness(1.3)}
+  #legend{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:center;font-size:9px;line-height:1.6;color:var(--muted);padding-block:4px 12px;text-align:center}
+  #legend b{color:var(--ink);font-weight:normal}
+  #legend .k{color:var(--gold)}
+  @media (pointer:coarse){ #pad{display:flex} #legend .kb{display:none} }
+</style>
+
+<div id="app">
+  <div id="stage"><canvas id="game" tabindex="0" aria-label="Juego Glaucoma Invaders, de INOP Ingeniería Óptica"></canvas></div>
+  <div id="pad">
+    <div class="row">
+      <div class="grp">
+        <button class="big" data-k="left" aria-label="Izquierda">◀</button>
+        <button class="big" data-k="right" aria-label="Derecha">▶</button>
+      </div>
+      <button class="act" data-k="fire">GOTA</button>
+    </div>
+    <div class="row">
+      <button class="small go" data-a="start">JUGAR</button>
+      <button class="small" data-a="pause">PAUSA</button>
+      <button class="small" data-a="mute" id="btn-mute">SONIDO: SÍ</button>
+    </div>
+  </div>
+  <div id="legend">
+    <span class="kb"><span class="k">← →</span> mover · <span class="k">ESPACIO</span> lanzar gota</span>
+    <span class="kb"><span class="k">ENTER</span> empezar · <span class="k">P</span> pausa · <span class="k">M</span> sonido</span>
+    <span>Baja la <b>presión intraocular</b> antes de que el glaucoma cierre tu campo visual</span>
+    <span>Un juego de <b>INOP Ingeniería Óptica</b></span>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const cv = $('game'), ctx = cv.getContext('2d');
+const VW = 224, VH = 256, TOP = 24, FLOOR = 238;
+const buf = document.createElement('canvas'); buf.width = VW; buf.height = VH;
+const b = buf.getContext('2d');
+let SC = 1, DPR = 1;
+function resize(){
+  const box = $('stage').getBoundingClientRect();
+  SC = Math.max(0.5, Math.min(box.width / VW, (box.height - 20) / VH));
+  DPR = window.devicePixelRatio || 1;
+  cv.style.width = Math.floor(VW*SC) + 'px'; cv.style.height = Math.floor(VH*SC) + 'px';
+  cv.width = Math.round(VW*SC*DPR); cv.height = Math.round(VH*SC*DPR);
+}
+new ResizeObserver(resize).observe($('stage'));
+resize();
+const R = (g, col, x, y, w, h) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+function mk(w, h, fn){ const c = document.createElement('canvas'); c.width = w; c.height = h; fn(c.getContext('2d')); return c; }
+function sprite(rows, col, accent){
+  return mk(rows[0].length, rows.length, g => rows.forEach((row, y) => {
+    for (let x=0; x<row.length; x++){ if (row[x] === '#') R(g, col, x, y, 1, 1); else if (row[x] === 'o') R(g, accent, x, y, 1, 1); }
+  }));
+}
+
+/* ---------- glaucoma facts, one per wave ---------- */
+const FACTS = [
+  'EL GLAUCOMA DAÑA EL NERVIO ÓPTICO, CASI SIEMPRE POR PRESIÓN ALTA DENTRO DEL OJO.',
+  'NO DUELE NI AVISA: PRIMERO SE PIERDE LA VISIÓN DE LOS LADOS, LA PERIFÉRICA.',
+  'LA VISIÓN PERDIDA POR GLAUCOMA NO SE RECUPERA. POR ESO HAY QUE DETECTARLO A TIEMPO.',
+  'LAS GOTAS PARA BAJAR LA PRESIÓN SE USAN TODOS LOS DÍAS, SIN SALTARSE NINGUNA.',
+  'DESPUÉS DE LOS 40 AÑOS, MÍDETE LA PRESIÓN OCULAR CADA AÑO EN INOP.',
+];
+
+/* ---------- sprites: intraocular pressure bubbles ---------- */
+const INV = [
+  {pts:30, col:'#ff4d4d', f:[
+    ["....####....","..########..",".##o####o##.","############","####.##.####","..#.#..#.#..",".#........#.","..#......#.."],
+    ["....####....","..########..",".##o####o##.","############","####.##.####","..#.#..#.#..","..#......#..",".#........#."]]},
+  {pts:20, col:'#ff8a3d', f:[
+    ["..#......#..","...#....#...","..########..",".##o####o##.","############","#.########.#","#.#......#.#","...##..##..."],
+    ["..#......#..","#..#....#..#","#.########.#","###o####o###","############",".##########.","..#......#..",".#........#."]]},
+  {pts:10, col:'#ffd23f', f:[
+    ["....####....",".##########.","############","###oo##oo###","############","...##..##...","..##.##.##..","##........##"],
+    ["....####....",".##########.","############","###oo##oo###","############","..###..###..",".##..##..##.","..##....##.."]]},
+];
+const SPR = INV.map(t => t.f.map(rows => sprite(rows, t.col, '#141414')));
+const PLAYER = sprite([
+  "......#......",".....###.....",".....#o#.....","....#####....","..#########..",".###########.","#############","#############",
+], '#f4f8ff', '#4fb3ff');
+const TONO = sprite([
+  "....######......","..##########....",".############...","##.##.##.##.##..","################","..###....###....",
+], '#6fe3d4', '#141414');
+
+/* ---------- sound ---------- */
+let AC = null, muted = false;
+function ac(){ if (!AC){ try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} } if (AC && AC.state === 'suspended') AC.resume(); return AC; }
+function tone(f, d, o={}){
+  if (!AC || muted) return;
+  const {type='square', vol=0.06, to=null, at=0} = o;
+  const t = AC.currentTime + at, osc = AC.createOscillator(), g = AC.createGain();
+  osc.type = type; osc.frequency.setValueAtTime(f, t);
+  if (to) osc.frequency.exponentialRampToValueAtTime(to, t+d);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t+d);
+  osc.connect(g).connect(AC.destination); osc.start(t); osc.stop(t+d+0.02);
+}
+function noise(d, vol){
+  if (!AC || muted) return;
+  const n = AC.createBuffer(1, AC.sampleRate*d, AC.sampleRate), data = n.getChannelData(0);
+  for (let i=0; i<data.length; i++) data[i] = (Math.random()*2 - 1) * (1 - i/data.length);
+  const s = AC.createBufferSource(), g = AC.createGain(); s.buffer = n; g.gain.value = vol;
+  s.connect(g).connect(AC.destination); s.start();
+}
+const seq = (notes, step, o) => notes.forEach((f, i) => tone(f, step*1.1, {...o, at: i*step}));
+const MARCH = [98, 92, 87, 82];
+const sfx = {
+  fire: () => tone(1200, 0.1, {to:500, type:'triangle', vol:0.08}),
+  pop: () => noise(0.12, 0.18),
+  march: i => tone(MARCH[i % 4], 0.09, {type:'square', vol:0.07}),
+  hurt: () => { noise(0.6, 0.3); seq([440,330,247,165], 0.12, {vol:0.05}); },
+  tono: () => tone(880, 0.12, {to:990, type:'sine', vol:0.04}),
+  bonus: () => seq([784,988,1319,1568], 0.06),
+  wave: () => seq([523,659,784,1047], 0.08),
+  pause: () => seq([988,784,988,784], 0.07),
+};
+
+/* ---------- input ---------- */
+const keys = {left:0, right:0, fire:0};
+let pressed = {};
+const MAP = {ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',Space:'fire',KeyZ:'fire',KeyX:'fire',ArrowUp:'fire',
+  Enter:'start',KeyP:'pause',KeyM:'mute'};
+function toggleMute(){ muted = !muted; $('btn-mute').textContent = muted ? 'SONIDO: NO' : 'SONIDO: SÍ'; }
+addEventListener('keydown', e => {
+  const k = MAP[e.code]; if (!k) return;
+  e.preventDefault(); ac();
+  if (!e.repeat){ pressed[k] = true; if (k === 'mute') toggleMute(); }
+  if (k in keys) keys[k] = 1;
+});
+addEventListener('keyup', e => { const k = MAP[e.code]; if (k in keys) keys[k] = 0; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = 0; });
+document.querySelectorAll('#pad button').forEach(btn => {
+  const k = btn.dataset.k, a = btn.dataset.a;
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault(); ac();
+    if (k){ keys[k] = 1; pressed[k] = true; if (k === 'fire') pressed.start = true; try { btn.setPointerCapture(e.pointerId); } catch(_) {} }
+    else if (a === 'start') pressed.start = true;
+    else if (a === 'pause'){ if (S.state === 'play') pressed.pause = true; else pressed.start = true; }
+    else if (a === 'mute') toggleMute();
+  });
+  if (k){ const up = () => { keys[k] = 0; }; btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up); btn.addEventListener('lostpointercapture', up); }
+});
+cv.addEventListener('pointerdown', () => { ac(); cv.focus(); pressed.start = true; });
+$('stage').addEventListener('click', () => cv.focus());
+document.addEventListener('visibilitychange', () => { if (document.hidden && S.state === 'play' && !S.paused) pressed.pause = true; });
+cv.focus();
+
+/* ---------- optic nerve shields: they get cupped (excavated) when hit ---------- */
+const SW = 24, SH = 18;
+function makeShield(){
+  const px = new Uint8Array(SW*SH);
+  for (let y=0; y<SH; y++) for (let x=0; x<SW; x++){
+    const dx = (x - 11.5) / 12, dy = (y - 9) / 9;
+    if (dx*dx + dy*dy <= 1 && !(y > 12 && Math.abs(x - 11.5) < 4)) px[y*SW + x] = 1;
+  }
+  return px;
+}
+function shieldPixelColor(x, y, s){
+  const dx = (x - 11.5) / 12, dy = (y - 9) / 9, d = Math.sqrt(dx*dx + dy*dy);
+  const cupR = 0.32 + s.cup * 0.5;
+  if (d < cupR) return '#ffe9cf';
+  if ((x === 9 || x === 15) && y > 2 && y < 16) return '#c0392b';
+  if (y === 6 && x > 3 && x < 20 && d > cupR) return '#d9534f';
+  return d > 0.85 ? '#e0734f' : '#ff9a76';
+}
+
+/* ---------- state ---------- */
+const S = {state:'title', score:0, hi:0, lives:3, wave:1, frame:0, timer:0, paused:false, field:1, fieldShown:1, factIdx:0, msg:null};
+try { S.hi = +localStorage.getItem('glaucoma-hi') || 0; } catch(e) {}
+let player, invaders, gridX, gridY, gridDir, stepTimer, stepCount, frame2, shots, bombs, shields, tono, tonoTimer, pops, booms, total;
+
+function newWave(){
+  invaders = [];
+  for (let r=0; r<5; r++) for (let c=0; c<11; c++){
+    const t = r === 0 ? 0 : r < 3 ? 1 : 2;
+    invaders.push({r, c, t, alive:true});
+  }
+  total = invaders.length;
+  gridX = 16; gridY = TOP + 40 + Math.min(S.wave - 1, 4) * 8; gridDir = 1; stepTimer = 0; stepCount = 0; frame2 = 0;
+  shots = []; bombs = []; booms = []; pops = []; tono = null; tonoTimer = 900;
+  shields = [0, 1, 2, 3].map(i => ({x: 20 + i*52, y: 196, px: makeShield(), cup:0}));
+  player = {x: 104, y: 222, w:13, h:8, cool:0, dead:0};
+}
+function startGame(){ S.score = 0; S.lives = 3; S.wave = 1; S.field = 1; S.fieldShown = 1; S.factIdx = 0; newWave(); showFact(); }
+function showFact(){ S.state = 'banner'; S.timer = 0; }
+function saveHi(){ if (S.score > S.hi){ S.hi = S.score; try { localStorage.setItem('glaucoma-hi', S.hi); } catch(e) {} } }
+function popup(text, x, y, col='#ffffff'){ pops.push({text, x, y, t:50, col}); }
+const alive = () => invaders.filter(i => i.alive);
+const invPos = i => ({x: gridX + i.c*16 + (i.t === 0 ? 2 : 0), y: gridY + i.r*16, w: 12, h: 8});
+const pio = () => Math.round(14 + 22 * alive().length / total);
+newWave();
+
+/* ---------- updates ---------- */
+function hitShield(x, y, down){
+  for (const s of shields){
+    const lx = Math.floor(x - s.x), ly = Math.floor(y - s.y);
+    if (lx < 0 || lx >= SW || ly < 0 || ly >= SH || !s.px[ly*SW + lx]) continue;
+    for (let yy=-3; yy<=3; yy++) for (let xx=-3; xx<=3; xx++){
+      if (xx*xx + yy*yy > 9 || Math.random() < 0.25) continue;
+      const px = lx + xx, py = ly + yy + (down ? 1 : -1);
+      if (px >= 0 && px < SW && py >= 0 && py < SH) s.px[py*SW + px] = 0;
+    }
+    s.cup = Math.min(1, s.cup + 0.04);
+    return true;
+  }
+  return false;
+}
+function loseLife(){
+  S.lives--; S.field = Math.max(0.3, S.field - 0.22);
+  player.dead = 90; bombs = []; sfx.hurt();
+  S.msg = {text:'¡PERDISTE CAMPO VISUAL!', sub:'Y NO SE RECUPERA', t:150};
+}
+function updatePlay(){
+  const p = player;
+  if (p.dead > 0){
+    if (--p.dead === 0){
+      if (S.lives <= 0){ saveHi(); S.state = 'gameover'; S.timer = 0; S.cause = 'vidas'; return; }
+      p.x = 104;
+    }
+    return;
+  }
+  const mul = 1 + (S.wave - 1) * 0.12;
+  p.x = Math.max(4, Math.min(VW - 17, p.x + ((keys.right ? 1 : 0) - (keys.left ? 1 : 0)) * 1.4));
+  if (p.cool > 0) p.cool--;
+  if ((pressed.fire || keys.fire) && !shots.length && p.cool === 0){ shots.push({x: p.x + 6, y: p.y - 4}); p.cool = 8; sfx.fire(); }
+
+  // player drops
+  for (const s of shots){
+    s.y -= 5;
+    if (s.y < TOP){ s.dead = true; continue; }
+    if (hitShield(s.x, s.y, false)){ s.dead = true; continue; }
+    for (const i of invaders){
+      if (!i.alive) continue;
+      const q = invPos(i);
+      if (s.x >= q.x && s.x < q.x + q.w && s.y >= q.y && s.y < q.y + q.h + 4){
+        i.alive = false; s.dead = true; S.score += INV[i.t].pts;
+        booms.push({x: q.x, y: q.y, t: 14}); sfx.pop();
+        break;
+      }
+    }
+    if (!s.dead && tono && s.x >= tono.x && s.x < tono.x + 16 && s.y >= tono.y && s.y < tono.y + 6){
+      const pts = [50, 100, 150, 300][Math.floor(Math.random()*4)];
+      S.score += pts; popup(String(pts), tono.x + 8, tono.y, '#6fe3d4'); tono = null; s.dead = true; sfx.bonus();
+    }
+  }
+  shots = shots.filter(s => !s.dead);
+
+  // march
+  const live = alive();
+  if (!live.length){ S.wave++; S.factIdx = (S.factIdx + 1) % FACTS.length; sfx.wave(); S.state = 'clear'; S.timer = 0; return; }
+  const interval = Math.max(2, Math.round((2 + live.length * 0.75) / mul));
+  if (++stepTimer >= interval){
+    stepTimer = 0; frame2 ^= 1; sfx.march(stepCount++);
+    const xs = live.map(i => invPos(i).x);
+    const minX = Math.min(...xs), maxX = Math.max(...xs) + 12;
+    if ((gridDir > 0 && maxX + 3 > VW - 4) || (gridDir < 0 && minX - 3 < 4)){ gridY += 8; gridDir = -gridDir; }
+    else gridX += 3 * gridDir;
+  }
+  const lowest = Math.max(...live.map(i => invPos(i).y + 8));
+  if (lowest >= p.y){ saveHi(); S.state = 'gameover'; S.timer = 0; S.cause = 'llegaron'; sfx.hurt(); return; }
+  // invaders crush the optic nerves they touch
+  for (const i of live){ const q = invPos(i); for (let x = q.x; x < q.x + 12; x += 2) hitShield(x, q.y + 7, true); }
+
+  // pressure bolts
+  if (bombs.length < 2 + Math.min(S.wave, 3) && Math.random() < 0.03 * mul){
+    const cols = {};
+    for (const i of live){ if (!cols[i.c] || cols[i.c].r < i.r) cols[i.c] = i; }
+    const bottom = Object.values(cols);
+    let shooter = bottom[Math.floor(Math.random()*bottom.length)];
+    if (Math.random() < 0.4){ shooter = bottom.reduce((a, c) => Math.abs(invPos(c).x - p.x) < Math.abs(invPos(a).x - p.x) ? c : a); }
+    const q = invPos(shooter);
+    bombs.push({x: q.x + 6, y: q.y + 8, t:0});
+  }
+  for (const m of bombs){
+    m.y += 1.6 * Math.min(mul, 1.5); m.t++;
+    if (m.y > FLOOR){ m.dead = true; continue; }
+    if (hitShield(m.x, m.y + 3, true)){ m.dead = true; continue; }
+    if (m.x >= p.x && m.x < p.x + p.w && m.y + 4 >= p.y && m.y < p.y + p.h){ m.dead = true; loseLife(); break; }
+    for (const s of shots) if (Math.abs(s.x - m.x) < 3 && Math.abs(s.y - m.y) < 5){ s.dead = true; m.dead = true; }
+  }
+  bombs = bombs.filter(m => !m.dead);
+  shots = shots.filter(s => !s.dead);
+
+  // tonometer flying by
+  if (!tono && --tonoTimer <= 0){ const l = Math.random() < 0.5; tono = {x: l ? -16 : VW, y: TOP + 12, vx: l ? 0.8 : -0.8}; tonoTimer = 1200 + Math.random()*600; }
+  if (tono){ tono.x += tono.vx; if (S.frame % 12 === 0) sfx.tono(); if (tono.x < -20 || tono.x > VW + 4) tono = null; }
+}
+function updateFx(){
+  for (const bm of booms) bm.t--;
+  booms = booms.filter(bm => bm.t > 0);
+  for (const p of pops){ p.t--; p.y -= 0.4; }
+  pops = pops.filter(p => p.t > 0);
+  if (S.msg && --S.msg.t <= 0) S.msg = null;
+  if (S.fieldShown > S.field) S.fieldShown = Math.max(S.field, S.fieldShown - 0.004);
+}
+
+function step(){
+  S.frame++;
+  if (pressed.pause && S.state === 'play'){ S.paused = !S.paused; sfx.pause(); }
+  if (S.paused){ pressed = {}; return; }
+  switch (S.state){
+    case 'title': if (pressed.start || pressed.fire) startGame(); break;
+    case 'banner':
+      S.timer++; updateFx();
+      if (S.timer > 330 || (S.timer > 45 && (pressed.start || pressed.fire))){ S.state = 'play'; for (const k in keys) keys[k] = 0; }
+      break;
+    case 'play': updatePlay(); updateFx(); break;
+    case 'clear':
+      S.timer++; updateFx();
+      if (S.timer > 90){ newWave(); showFact(); }
+      break;
+    case 'gameover':
+      S.timer++; updateFx();
+      if ((S.timer > 60 && (pressed.start || pressed.fire)) || S.timer > 480){ S.state = 'title'; S.field = S.fieldShown = 1; newWave(); }
+      break;
+  }
+  pressed = {};
+}
+
+/* ---------- drawing ---------- */
+const STARS = (() => { const out = []; let s = 3; const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; for (let i=0; i<40; i++) out.push([Math.floor(r()*VW), TOP + Math.floor(r()*(FLOOR - TOP))]); return out; })();
+function drawShield(s){
+  for (let y=0; y<SH; y++) for (let x=0; x<SW; x++) if (s.px[y*SW + x]) R(b, shieldPixelColor(x, y, s), s.x + x, s.y + y, 1, 1);
+}
+function drawDropShot(x, y){ R(b, '#9fe8ff', x, y, 1, 1); R(b, '#4fb3ff', x - 1, y + 1, 3, 3); R(b, '#ffffff', x - 1, y + 1, 1, 1); }
+function drawBolt(m){
+  const z = (m.t >> 2) & 1;
+  for (let k=0; k<6; k++) R(b, '#ff6b6b', Math.round(m.x + ((k + z) & 1 ? 1 : -1)), Math.round(m.y + k), 1, 1);
+}
+function drawField(){
+  // peripheral vision loss: darkness closes in from the edges and never comes back
+  if (S.fieldShown >= 0.999) return;
+  const cx = VW/2, cy = 150, r = 30 + S.fieldShown * 140;
+  const g = b.createRadialGradient(cx, cy, r*0.55, cx, cy, r);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.94)');
+  b.fillStyle = g; b.fillRect(0, TOP, VW, FLOOR - TOP);
+  b.fillStyle = 'rgba(0,0,0,0.94)';
+  b.beginPath(); b.rect(0, TOP, VW, FLOOR - TOP); b.arc(cx, cy, r, 0, Math.PI*2, true); b.fill();
+}
+function drawFieldIcon(x, y){
+  b.fillStyle = '#141f3d'; b.beginPath(); b.arc(x, y, 6, 0, Math.PI*2); b.fill();
+  b.fillStyle = '#e8f1ff'; b.beginPath(); b.arc(x, y, Math.max(1.5, 6*S.fieldShown), 0, Math.PI*2); b.fill();
+}
+function render(){
+  b.imageSmoothingEnabled = false;
+  R(b, '#05070f', 0, 0, VW, VH);
+  for (const [x, y] of STARS) R(b, (x + S.frame >> 5) % 3 ? '#1b2440' : '#2c3a66', x, y, 1, 1);
+  for (const s of shields) drawShield(s);
+  for (const i of invaders){ if (!i.alive) continue; const q = invPos(i); b.drawImage(SPR[i.t][frame2], q.x, q.y); }
+  for (const bm of booms){ const c = bm.t > 7 ? '#ffffff' : '#9fe8ff'; for (let k=0; k<8; k++){ const a = k*Math.PI/4, d = 14 - bm.t*0.6; R(b, c, Math.round(bm.x + 6 + Math.cos(a)*d), Math.round(bm.y + 4 + Math.sin(a)*d), 1, 1); } }
+  if (tono) b.drawImage(TONO, Math.round(tono.x), tono.y);
+  for (const s of shots) drawDropShot(Math.round(s.x), Math.round(s.y));
+  for (const m of bombs) drawBolt(m);
+  const p = player;
+  if (S.state !== 'title' && S.state !== 'gameover'){
+    if (p.dead > 0){ if ((p.dead >> 3) & 1){ R(b, '#ff6b6b', p.x + 2, p.y + 2, 9, 4); R(b, '#ffd23f', p.x + 5, p.y, 3, 8); } }
+    else b.drawImage(PLAYER, Math.round(p.x), p.y);
+  }
+  R(b, '#6fe3d4', 0, FLOOR, VW, 1);
+  drawField();
+  R(b, '#05070f', 0, 0, VW, TOP - 1); R(b, '#4fb3ff', 0, TOP - 1, VW, 1);
+  R(b, '#05070f', 0, FLOOR + 1, VW, VH - FLOOR - 1);
+  for (let i=0; i<Math.max(0, S.lives - 1) && i<4; i++) b.drawImage(PLAYER, 4 + i*16, FLOOR + 6);
+  drawFieldIcon(VW - 10, FLOOR + 9);
+  if (S.state === 'title') R(b, 'rgba(5,7,15,.95)', 0, TOP, VW, FLOOR - TOP);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(buf, 0, 0, cv.width, cv.height);
+  const k = SC * DPR; ctx.setTransform(k, 0, 0, k, 0, 0); ctx.imageSmoothingEnabled = false;
+  drawOverlay();
+}
+
+/* ---------- text: accents and Ñ drawn by hand (the pixel font has no accented capitals) ---------- */
+const ACC = {'Á':['A',1],'É':['E',1],'Í':['I',1],'Ó':['O',1],'Ú':['U',1],'Ñ':['N',2]};
+function txt(s, x, y, col='#ffffff', size=8, align='left'){
+  const chars = [...s], plain = chars.map(ch => ACC[ch] ? ACC[ch][0] : ch).join('');
+  ctx.font = size + 'px "Press Start 2P", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  const w = ctx.measureText(plain).width, cw = w / Math.max(1, chars.length);
+  const x0 = align === 'center' ? x - w/2 : align === 'right' ? x - w : x;
+  for (const [o, fill] of [[size/8, 'rgba(0,0,0,.6)'], [0, col]]){
+    ctx.fillStyle = fill; ctx.fillText(plain, x0 + o, y + o);
+    chars.forEach((ch, i) => {
+      const a = ACC[ch]; if (!a) return;
+      const u = size/8, ax = x0 + o + i*cw;
+      if (a[1] === 1){ ctx.fillRect(ax + cw*0.4, y + o - 2*u, 2*u, u); ctx.fillRect(ax + cw*0.4 + u, y + o - 3*u, 2*u, u); }
+      else { ctx.fillRect(ax + u, y + o - 2*u, 2*u, u); ctx.fillRect(ax + 3*u, y + o - 3*u, 2*u, u); ctx.fillRect(ax + 5*u, y + o - 2*u, u, u); }
+    });
+  }
+}
+function wrap(s, max){
+  const out = []; let line = '';
+  for (const w of s.split(' ')){ if ((line + ' ' + w).trim().length > max){ out.push(line); line = w; } else line = (line + ' ' + w).trim(); }
+  if (line) out.push(line);
+  return out;
+}
+const pad = (n, l) => String(n).padStart(l, '0');
+function panel(x, y, w, h){
+  ctx.fillStyle = 'rgba(5,11,24,.94)'; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#6fe3d4'; ctx.fillRect(x, y, w, 2); ctx.fillRect(x, y + h - 2, w, 2);
+}
+function drawOverlay(){
+  txt('INOP', 4, 3, '#6fe3d4', 6); txt(pad(S.score, 5), 4, 12, '#ffffff', 8);
+  const v = S.state === 'title' ? 36 : pio(), ok = v <= 21;
+  txt('PIO', 112, 3, '#8ea6cc', 6, 'center'); txt(v + ' mmHg', 112, 12, ok ? '#b6ff3b' : '#ff6b6b', 8, 'center');
+  txt('RÉCORD', 220, 3, '#fce0a8', 6, 'right'); txt(pad(Math.max(S.hi, S.score), 5), 220, 12, '#ffffff', 8, 'right');
+  txt('CAMPO', VW - 20, FLOOR + 7, '#8ea6cc', 5, 'right');
+  if (S.state !== 'title') txt('© INOP INGENIERÍA ÓPTICA', 112, VH - 7, 'rgba(111,227,212,.8)', 4, 'center');
+  for (const p of pops) txt(p.text, p.x, p.y, p.col, 6, 'center');
+  if (S.msg && S.state === 'play'){
+    txt(S.msg.text, 112, 150, '#ff6b6b', 7, 'center');
+    txt(S.msg.sub, 112, 162, '#ffffff', 6, 'center');
+  }
+
+  if (S.state === 'banner'){
+    const lines = wrap(FACTS[S.factIdx], 26), h = 58 + lines.length*10, y = 70;
+    panel(10, y, 204, h);
+    txt('OLEADA ' + S.wave, 112, y + 10, '#ffd23f', 8, 'center');
+    txt('DATO INOP', 112, y + 26, '#6fe3d4', 5, 'center');
+    lines.forEach((l, i) => txt(l, 112, y + 38 + i*10, '#ffffff', 6, 'center'));
+    if (S.timer > 45 && ((S.frame >> 5) & 1)) txt('DISPARA PARA SEGUIR', 112, y + h - 12, '#fce0a8', 5, 'center');
+  }
+  if (S.state === 'clear'){
+    panel(22, 100, 180, 48);
+    txt('PIO CONTROLADA', 112, 110, '#b6ff3b', 8, 'center');
+    txt('14 mmHg · NERVIO A SALVO', 112, 128, '#ffffff', 6, 'center');
+  }
+  if (S.state === 'gameover'){
+    panel(10, 86, 204, 86);
+    txt('FIN DEL JUEGO', 112, 96, '#ff4d4d', 8, 'center');
+    const why = S.cause === 'llegaron' ? 'LA PRESIÓN DAÑÓ EL NERVIO ÓPTICO' : 'TE QUEDASTE SIN CAMPO VISUAL';
+    wrap(why, 30).forEach((l, i) => txt(l, 112, 114 + i*10, '#ffffff', 6, 'center'));
+    txt('EL GLAUCOMA SIN CONTROL', 112, 136, '#fce0a8', 6, 'center');
+    txt('PUEDE CAUSAR CEGUERA', 112, 146, '#fce0a8', 6, 'center');
+    txt('MÍDETE LA PRESIÓN EN INOP', 112, 158, '#6fe3d4', 6, 'center');
+  }
+  if (S.state === 'title'){
+    txt('GLAUCOMA', 112, 36, '#ff6b6b', 16, 'center');
+    txt('INVADERS', 112, 56, '#ff6b6b', 16, 'center');
+    txt('INOP INGENIERÍA ÓPTICA', 112, 78, '#6fe3d4', 6, 'center');
+    ctx.drawImage(SPR[0][(S.frame >> 4) & 1], 40, 96); txt('= 30  PRESIÓN ALTA', 60, 96, '#ff4d4d', 6);
+    ctx.drawImage(SPR[1][(S.frame >> 4) & 1], 40, 110); txt('= 20', 60, 110, '#ff8a3d', 6);
+    ctx.drawImage(SPR[2][(S.frame >> 4) & 1], 40, 124); txt('= 10', 60, 124, '#ffd23f', 6);
+    ctx.drawImage(TONO, 38, 138); txt('= ?   TONÓMETRO', 60, 138, '#6fe3d4', 6);
+    ctx.drawImage(PLAYER, 39, 152); txt('TU GOTERO DE GOTAS', 60, 152, '#e8f1ff', 6);
+    txt('PROTEGE LOS NERVIOS ÓPTICOS', 112, 172, '#ff9a76', 6, 'center');
+    txt('Y BAJA LA PIO A 21 O MENOS', 112, 182, '#ff9a76', 6, 'center');
+    if ((S.frame >> 5) & 1) txt('PRESIONA ENTER', 112, 200, '#ffffff', 8, 'center');
+    txt('RÉCORD ' + pad(S.hi, 5), 112, 216, '#8ea6cc', 6, 'center');
+    txt('© INOP INGENIERÍA ÓPTICA', 112, 246, '#6fe3d4', 5, 'center');
+  }
+  if (S.paused){
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, VW, VH);
+    txt('PAUSA', 112, 120, '#ffffff', 10, 'center');
+  }
+  if (muted) txt('SIN SONIDO', 112, FLOOR + 8, '#fce0a8', 5, 'center');
+}
+
+/* ---------- loop ---------- */
+let last = performance.now(), acc = 0;
+function loop(now){
+  acc += Math.min(100, now - last); last = now;
+  while (acc >= 1000/60){ step(); acc -= 1000/60; }
+  render();
+  requestAnimationFrame(loop);
+}
+if (document.fonts && document.fonts.load) document.fonts.load('8px "Press Start 2P"').catch(() => {});
+requestAnimationFrame(loop);
+})();
+</script>
+</body></html>

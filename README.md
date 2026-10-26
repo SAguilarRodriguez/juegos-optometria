@@ -11,6 +11,7 @@ Juegos clásicos remasterizados con estética 8 bits como ejercicios de optometr
 | Pupi-Man vs Bacterias | Pac-Man | [`juegos/pupi-man-bacterias`](juegos/pupi-man-bacterias/index.html) |
 | Lubri Climber | Ice Climber | [`juegos/lubri-climber`](juegos/lubri-climber/index.html) |
 | Lubri Climber Efron | Ice Climber | [`juegos/lubri-climber-efron`](juegos/lubri-climber-efron/index.html) |
+| Glaucoma Invaders | Space Invaders | [`juegos/glaucoma-invaders`](juegos/glaucoma-invaders/index.html) |
 
 ### Súper INOP
 
@@ -43,6 +44,12 @@ Controles: flechas para moverse, Espacio para saltar, X para el retinoscopio, En
 ### Lubri Climber Efron
 
 Versión de Lubri Climber con la escala de Efron (grados 0 a 4 de tinción corneal) y el aspecto del Ice Climber original: fondo negro, columnas de roca con el grado en cada piso y ladrillos verdes, cafés y de hielo. Cada grado muestra un Dato INOP con la córnea teñida de ese grado.
+
+### Glaucoma Invaders
+
+Space Invaders contra el glaucoma. Tu nave es un gotero que dispara gotas hipotensoras a las burbujas de presión intraocular. Arriba se ve la PIO: empieza en 36 mmHg y baja con cada burbuja, hasta 14 mmHg al limpiar la oleada (normal es 21 o menos). Los escudos son nervios ópticos que se excavan con cada impacto. Cada vida perdida cierra el campo visual desde la periferia y no se recupera. Un tonómetro cruza de vez en cuando con puntos extra, y antes de cada oleada aparece un Dato INOP sobre el glaucoma.
+
+Controles: flechas para moverse, Espacio para lanzar gota, Enter para empezar, P pausa, M sonido. En pantallas táctiles aparece un control en pantalla.
 
 ## App para Android
 
