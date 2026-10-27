@@ -14,6 +14,7 @@ Juegos clásicos remasterizados con estética 8 bits como ejercicios de optometr
 | Glaucoma Invaders | Space Invaders | [`juegos/glaucoma-invaders`](juegos/glaucoma-invaders/index.html) |
 | Foróptero Slug | Metal Slug | [`juegos/foroptero-slug`](juegos/foroptero-slug/index.html) |
 | Foróptero Slug (prueba gráfica) | Metal Slug | [`juegos/foroptero-slug-prueba`](juegos/foroptero-slug-prueba/index.html) |
+| Viaje al Ojo (3D) | Túnel 3D estilo Star Fox / Tempest | [`juegos/viaje-al-ojo`](juegos/viaje-al-ojo/index.html) |
 
 ### Súper INOP
 
@@ -60,6 +61,12 @@ Run and gun al estilo Metal Slug, a la resolución del Neo Geo. Un doctor de bat
 `foroptero-slug-prueba` es la primera prueba gráfica, con la Calle 17 de ladrillo. Se dejó tal cual.
 
 Controles: flechas para moverse, ↑ apuntar arriba, ↓ agacharse, Z disparar, X saltar, C lanzar regla, Enter empezar, P pausa, M sonido. En pantallas táctiles aparece un control en pantalla.
+
+### Viaje al Ojo
+
+Juego en 3D (Three.js, incluido dentro del HTML para que funcione sin internet) con aspecto pixelado. Eres un fotón de luz que entra por la córnea y viaja hasta la retina: córnea (pestañas y polvo), humor acuoso (células inflamatorias y el iris, cuya pupila se cierra cuando te acercas), cristalino (cataratas corticales y nuclear), humor vítreo (moscas volantes y anillo de Weiss) y retina (desprendimientos). Al llegar al fondo del ojo hay que apuntar a la fóvea: da Visión 20/20; la mácula y la periferia dan menos puntos y el nervio óptico es el punto ciego. Cada parte del ojo muestra un Dato INOP, y si te absorben el juego explica qué patología te detuvo. Los lentes recargan tu intensidad.
+
+Controles: flechas o WASD para mover el fotón, Enter para empezar, P pausa, M sonido. En el celular se arrastra el dedo.
 
 ## App para Android
 
