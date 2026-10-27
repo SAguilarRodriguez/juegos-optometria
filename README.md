@@ -64,7 +64,7 @@ Controles: flechas para moverse, ↑ apuntar arriba, ↓ agacharse, Z disparar, 
 
 ### Viaje al Ojo
 
-Juego en 3D (Three.js, incluido dentro del HTML para que funcione sin internet) con aspecto pixelado. Eres un fotón de luz que entra por la córnea y viaja hasta la retina: córnea (pestañas y polvo), humor acuoso (células inflamatorias y el iris, cuya pupila se cierra cuando te acercas), cristalino (cataratas corticales y nuclear), humor vítreo (moscas volantes y anillo de Weiss) y retina (desprendimientos). Al llegar al fondo del ojo hay que apuntar a la fóvea: da Visión 20/20; la mácula y la periferia dan menos puntos y el nervio óptico es el punto ciego. Cada parte del ojo muestra un Dato INOP, y si te absorben el juego explica qué patología te detuvo. Los lentes recargan tu intensidad.
+Juego en 3D (Three.js, incluido dentro del HTML para que funcione sin internet) con aspecto pixelado. Empieza con el rostro de una persona: la cámara se acerca a un ojo y entra por la pupila. Eres un fotón de luz que entra por la córnea y viaja hasta la retina: córnea (pestañas y polvo), humor acuoso (células inflamatorias y el iris, cuya pupila se cierra cuando te acercas), cristalino (cataratas corticales y nuclear), humor vítreo (moscas volantes y anillo de Weiss) y retina (desprendimientos). Al llegar al fondo del ojo hay que apuntar a la fóvea: da Visión 20/20; la mácula y la periferia dan menos puntos y el nervio óptico es el punto ciego. Cada parte del ojo muestra un Dato INOP, y si te absorben el juego explica qué patología te detuvo. Los lentes recargan tu intensidad.
 
 Controles: flechas o WASD para mover el fotón, Enter para empezar, P pausa, M sonido. En el celular se arrastra el dedo.
 
