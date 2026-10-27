@@ -12,6 +12,8 @@ Juegos clásicos remasterizados con estética 8 bits como ejercicios de optometr
 | Lubri Climber | Ice Climber | [`juegos/lubri-climber`](juegos/lubri-climber/index.html) |
 | Lubri Climber Efron | Ice Climber | [`juegos/lubri-climber-efron`](juegos/lubri-climber-efron/index.html) |
 | Glaucoma Invaders | Space Invaders | [`juegos/glaucoma-invaders`](juegos/glaucoma-invaders/index.html) |
+| Foróptero Slug | Metal Slug | [`juegos/foroptero-slug`](juegos/foroptero-slug/index.html) |
+| Foróptero Slug (prueba gráfica) | Metal Slug | [`juegos/foroptero-slug-prueba`](juegos/foroptero-slug-prueba/index.html) |
 
 ### Súper INOP
 
@@ -50,6 +52,14 @@ Versión de Lubri Climber con la escala de Efron (grados 0 a 4 de tinción corne
 Space Invaders contra el glaucoma. Tu nave es un gotero que dispara gotas hipotensoras a las burbujas de presión intraocular. Arriba se ve la PIO: empieza en 36 mmHg y baja con cada burbuja, hasta 14 mmHg al limpiar la oleada (normal es 21 o menos). Los escudos son nervios ópticos que se excavan con cada impacto. Cada vida perdida cierra el campo visual desde la periferia y no se recupera. Un tonómetro cruza de vez en cuando con puntos extra, y antes de cada oleada aparece un Dato INOP sobre el glaucoma.
 
 Controles: flechas para moverse, Espacio para lanzar gota, Enter para empezar, P pausa, M sonido. En pantallas táctiles aparece un control en pantalla.
+
+### Foróptero Slug
+
+Run and gun al estilo Metal Slug, a la resolución del Neo Geo. Un doctor de bata con espejo frontal dispara gafas, se agacha para acabar con los neumococos pequeños, lanza reglas esquiascópicas como granadas y se sube al Foróptero Slug, un foróptero con orugas y cañón. Pelea contra estafilococos, pseudomonas y el Orzuelo Gigante, rescata pacientes que le dan gafas pesadas o más reglas y termina en la fachada de INOP Ingeniería Óptica. Al fondo están Monserrate con su santuario y teleférico, Guadalupe con la Virgen y la Torre Colpatria. Al final aparece un Dato INOP.
+
+`foroptero-slug-prueba` es la primera prueba gráfica, con la Calle 17 de ladrillo. Se dejó tal cual.
+
+Controles: flechas para moverse, ↑ apuntar arriba, ↓ agacharse, Z disparar, X saltar, C lanzar regla, Enter empezar, P pausa, M sonido. En pantallas táctiles aparece un control en pantalla.
 
 ## App para Android
 
