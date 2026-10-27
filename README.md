@@ -15,6 +15,7 @@ Juegos clásicos remasterizados con estética 8 bits como ejercicios de optometr
 | Foróptero Slug | Metal Slug | [`juegos/foroptero-slug`](juegos/foroptero-slug/index.html) |
 | Foróptero Slug (prueba gráfica) | Metal Slug | [`juegos/foroptero-slug-prueba`](juegos/foroptero-slug-prueba/index.html) |
 | Viaje al Ojo (3D) | Túnel 3D estilo Star Fox / Tempest | [`juegos/viaje-al-ojo`](juegos/viaje-al-ojo/index.html) |
+| Ver Claro (3D) | Recorrido en primera persona | [`juegos/ver-claro`](juegos/ver-claro/index.html) |
 
 ### Súper INOP
 
@@ -67,6 +68,14 @@ Controles: flechas para moverse, ↑ apuntar arriba, ↓ agacharse, Z disparar, 
 Juego en 3D (Three.js, incluido dentro del HTML para que funcione sin internet) con aspecto pixelado. Empieza con el rostro de una persona: la cámara se acerca a un ojo y entra por la pupila. Eres un fotón de luz que entra por la córnea y viaja hasta la retina: córnea (pestañas y polvo), humor acuoso (células inflamatorias y el iris, cuya pupila se cierra cuando te acercas), cristalino (cataratas corticales y nuclear), humor vítreo (moscas volantes y anillo de Weiss) y retina (desprendimientos). Al llegar al fondo del ojo hay que apuntar a la fóvea: da Visión 20/20; la mácula y la periferia dan menos puntos y el nervio óptico es el punto ciego. Cada parte del ojo muestra un Dato INOP, y si te absorben el juego explica qué patología te detuvo. Los lentes recargan tu intensidad.
 
 Controles: flechas o WASD para mover el fotón, Enter para empezar, P pausa, M sonido. En el celular se arrastra el dedo.
+
+### Ver Claro
+
+Juego en 3D y en primera persona (Three.js incluido en el HTML). Recorres Bogotá viendo con los ojos de 4 pacientes: en Monserrate todo lo lejano se ve borroso (miopía), en la Séptima de noche frente a la Torre Colpatria las luces se estiran en rayas (astigmatismo), en La Candelaria la visión se cierra por los lados (glaucoma) y en la Calle 17 el rojo y el verde se confunden (daltonismo). Cada paciente cuenta su síntoma y en la calle hay tres soluciones: hay que caminar hacia la correcta (lente negativo, lente cilíndrico, gotas para la presión o lentes con filtro). Las equivocadas explican por qué no sirven y cuestan una vida. Al acertar, la vista se corrige, aparece un Dato INOP y se abre el paso. Ojo con los huecos, las piedras, los carros, los buses y los ciclistas. El último nivel termina en la fachada de INOP Ingeniería Óptica.
+
+Para el glaucoma el juego es fiel a la realidad: las gotas frenan el daño pero el campo perdido no vuelve. Con el daltonismo los lentes con filtro mejoran el contraste, pero no lo curan.
+
+Controles: flechas o WASD para caminar y girar, Q/E para moverse de lado, Enter para empezar, P pausa, M sonido. En el celular se arrastra el dedo como un joystick.
 
 ## App para Android
 
